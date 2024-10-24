@@ -3,3 +3,4 @@ gunicorn
 pandas
 plotly
 requests
+lxml

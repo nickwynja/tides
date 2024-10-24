@@ -126,6 +126,12 @@ def tides():
         )
     )
 
+
+    fig.update_layout(
+            showlegend=False,
+            height=800
+            )
+
     return fig.to_html(full_html=True, include_plotlyjs='cdn')
 
 if __name__ == '__main__':

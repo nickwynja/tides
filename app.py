@@ -137,55 +137,10 @@ def tides():
     wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
     wind_dir = root.findall('.//direction[@type="wind"]/value')
 
-    winds = []
-
-    for idx,t in enumerate(times):
-        winds.append({
-            'time': t.text,
-            'speed': wind_speeds[idx].text,
-            'direction': wind_dir[idx].text
-        })
-    # print(len(times))
-    # print(len(wind_speeds))
-    # print(len(wind_dir))
-    # for t in times:
-    #     print(t.text)
-
-    for w in winds[:24]:
-        time = w['time']
-        wind = f"{w['speed']}kt<br>{deg_to_compass(w['direction'])}"
+    for idx,t in enumerate(times[:36]):
+        time = t.text
+        wind = f"{wind_speeds[idx].text}kt<br>{deg_to_compass(wind_dir[idx].text)}"
         fig.add_annotation(x=time, y=5, text=wind, showarrow=False)
-
-
-    # for d in forecast_hourly.json()['properties']['windSpeed']['values'][:-12]:
-    #     valid_time = d['validTime'].split('/')
-    #     time = pd.to_datetime(valid_time[0])
-    #     valid_hours = int(valid_time[1].removeprefix("PT").removesuffix("H"))
-    #     wind = f"{km_to_kn(d['value'])} kt"
-
-    #     if valid_hours > 1:
-    #         fig.add_annotation(x=time, y=5, text=wind, showarrow=False)
-    #         # while valid_hours > 1:
-    #         #     time = time + timedelta(hours=1)
-    #         #     fig.add_annotation(x=time, y=5, text=wind, showarrow=False)
-    #         #     valid_hours = valid_hours - 1
-    #     else:
-    #         fig.add_annotation(x=time, y=5, text=wind, showarrow=False)
-
-    # for d in forecast_hourly.json()['properties']['windDirection']['values'][:-12]:
-    #     valid_time = d['validTime'].split('/')
-    #     time = pd.to_datetime(valid_time[0])
-    #     valid_hours = int(valid_time[1].removeprefix("PT").removesuffix("H"))
-    #     wind = deg_to_compass(d['value'])
-
-    #     if valid_hours > 1:
-    #         fig.add_annotation(x=time, y=4.9, text=wind, showarrow=False)
-    #         # while valid_hours > 1:
-    #         #     time = time + timedelta(hours=1)
-    #         #     fig.add_annotation(x=time, y=4.9, text=wind, showarrow=False)
-    #         #     valid_hours = valid_hours - 1
-    #     else:
-    #         fig.add_annotation(x=time, y=4.9, text=wind, showarrow=False)
 
     fig.update_traces(textposition=improve_text_position(dc['Time']))
 

@@ -5,3 +5,4 @@ plotly
 requests
 lxml
 html5lib
+requests-cache

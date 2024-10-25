@@ -129,7 +129,7 @@ def tides():
 
     fig.update_layout(
             showlegend=False,
-            height=800
+            height=800,
             )
 
     return fig.to_html(full_html=True, include_plotlyjs='cdn')

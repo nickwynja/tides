@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 from requests_cache import CachedSession
 import pprint
 import math
+import xml.etree.ElementTree as ET
 
 
 app = Flask(__name__)
@@ -21,9 +22,9 @@ if not app.debug:
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 
-def add_sun_annot(fig, when, color="orange", y=-0.4):
-  fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
-  fig.add_annotation(x=when, y=y, text=when.strftime("%H:%M"), showarrow=False)
+def add_sun_annot(fig, when):
+  fig.add_vline(x=when, line_width=2, line_dash="dash", line_color="orange")
+  fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"), showarrow=False)
   return fig
 
 def improve_text_position(x):
@@ -38,9 +39,6 @@ def seconds_until_hour():
     next_hour = (now + delta).replace(microsecond=0, second=0, minute=0)
     wait_seconds = (next_hour - now).seconds
     return wait_seconds
-
-def km_to_kn(speed):
-    return math.floor(int(speed) * 0.53996)
 
 def deg_to_compass(num):
     num=int(num)
@@ -58,15 +56,23 @@ def tides():
     start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
     end_date = (datetime.today() + timedelta(days = DAYS)).strftime('%Y%m%d')
 
-    tide_station = "8512053" # Hash
-    current_station = "ACT2781" # Rocky pt
+    if request.args.get('tides') == "bay":
+        tide_station = "8512114" # Southold
+        current_station = "ACT2521" # Jennings Pt
+        lat = 41.0338
+        lon = -72.4344
+    else:
+        tide_station = "8512053" # Hash
+        current_station = "ACT2781" # Rocky pt
+        lat = 41.1396742515397
+        lon = -72.35398912476371
 
     cache_expires = seconds_until_hour()
 
-    forecast_hourly = session.get(
-            f"https://api.weather.gov/gridpoints/OKX/87,63",
-            expire_after=cache_expires,
-            )
+    # forecast_hourly = session.get(
+    #         f"https://api.weather.gov/gridpoints/OKX/87,63",
+    #         expire_after=cache_expires,
+    #         )
 
     forecast_daily = session.get(
             f"https://dataservice.accuweather.com/forecasts/v1/daily/5day/2274451?apikey=qhBeSntg5AV4KEv6AbtWQOOQKVnGAkY9&details=true",
@@ -74,7 +80,7 @@ def tides():
             )
 
     forecast_marine = session.get(
-            f"https://forecast.weather.gov/MapClick.php?lat=41.1328&lon=-72.6664&FcstType=digitalDWML",
+            f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
             expire_after=cache_expires,
             )
 
@@ -127,7 +133,6 @@ def tides():
         fig = add_sun_annot(fig, pd.to_datetime(d['Sun']['Set']))
 
 
-    import xml.etree.ElementTree as ET
 
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
 
@@ -143,7 +148,7 @@ def tides():
         time = t.text
         # gusts = f"<br>{wind_gusts[idx].text}kt gusts" if wind_gusts[idx].text else ""
         cond = f"{wind_speeds[idx].text}kt<br>{deg_to_compass(wind_dir[idx].text)}<br>{waves[idx].text}ft"
-        fig.add_annotation(x=time, y=5, text=cond, showarrow=False)
+        fig.add_annotation(x=time, yref="paper", y=1, text=cond, showarrow=False)
 
     fig.update_traces(textposition=improve_text_position(dc['Time']))
 
@@ -175,7 +180,25 @@ def tides():
             height=800,
             )
 
-    return fig.to_html(full_html=True, include_plotlyjs='cdn')
+    fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body>
+<a href="/?tides=sound">Sound</a>
+<a href="/?tides=bay">Bay</a>
+{ fig_html }
+</body>
+</html>
+"""
+
+    return html
 
 if __name__ == '__main__':
     app.run(debug=True)

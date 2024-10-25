@@ -135,12 +135,15 @@ def tides():
 
     times = root.findall('.//start-valid-time')
     wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
+    wind_gusts = root.findall('.//wind-speed[@type="gust"]/value')
     wind_dir = root.findall('.//direction[@type="wind"]/value')
+    waves = root.findall('.//waves[@type="significant"]/value')
 
     for idx,t in enumerate(times[:36]):
         time = t.text
-        wind = f"{wind_speeds[idx].text}kt<br>{deg_to_compass(wind_dir[idx].text)}"
-        fig.add_annotation(x=time, y=5, text=wind, showarrow=False)
+        # gusts = f"<br>{wind_gusts[idx].text}kt gusts" if wind_gusts[idx].text else ""
+        cond = f"{wind_speeds[idx].text}kt<br>{deg_to_compass(wind_dir[idx].text)}<br>{waves[idx].text}ft"
+        fig.add_annotation(x=time, y=5, text=cond, showarrow=False)
 
     fig.update_traces(textposition=improve_text_position(dc['Time']))
 

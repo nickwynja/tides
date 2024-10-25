@@ -177,7 +177,8 @@ def tides():
 
     fig.update_layout(
             showlegend=False,
-            height=800,
+            height=600,
+            margin=dict(l=10, r=10, t=40, b=40),
             )
 
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')

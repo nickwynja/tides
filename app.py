@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, abort
+from flask import Flask, request, redirect, abort, render_template
 from urllib.parse import urlparse
 import logging
 import re
@@ -14,9 +14,11 @@ import pprint
 import math
 import xml.etree.ElementTree as ET
 import pytz
+from turbo_flask import Turbo
 
 
 app = Flask(__name__)
+turbo = Turbo(app)
 
 if not app.debug:
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -186,23 +188,7 @@ def tides():
 
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
-    html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-</head>
-
-<body>
-<a href="/?tides=sound">Sound</a>
-<a href="/?tides=bay">Bay</a>
-{ fig_html }
-</body>
-</html>
-"""
-
-    return html
+    return render_template('index.html', fig_html=fig_html)
 
 if __name__ == '__main__':
     app.run(debug=True)

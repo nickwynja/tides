@@ -6,3 +6,4 @@ requests
 lxml
 html5lib
 requests-cache
+turbo-flask

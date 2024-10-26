@@ -13,6 +13,7 @@ from requests_cache import CachedSession
 import pprint
 import math
 import xml.etree.ElementTree as ET
+import pytz
 
 
 app = Flask(__name__)
@@ -22,8 +23,8 @@ if not app.debug:
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 
-def add_sun_annot(fig, when):
-  fig.add_vline(x=when, line_width=2, line_dash="dash", line_color="orange")
+def add_sun_annot(fig, when, color="orange"):
+  fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
   fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"), showarrow=False)
   return fig
 
@@ -51,10 +52,15 @@ session = CachedSession()
 
 @app.route('/')
 def tides():
-    DAYS = 7
+    DAYS = 2
 
-    start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
+    # start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
+    start_date = datetime.today().strftime('%Y%m%d')
     end_date = (datetime.today() + timedelta(days = DAYS)).strftime('%Y%m%d')
+    today = datetime.today().strftime('%Y-%m-%d')
+
+    local_now = datetime.now(pytz.timezone('US/Eastern'))
+    offset = int(local_now.utcoffset().total_seconds()/60/60)
 
     if request.args.get('tides') == "bay":
         tide_station = "8512114" # Southold
@@ -68,16 +74,6 @@ def tides():
         lon = -72.35398912476371
 
     cache_expires = seconds_until_hour()
-
-    # forecast_hourly = session.get(
-    #         f"https://api.weather.gov/gridpoints/OKX/87,63",
-    #         expire_after=cache_expires,
-    #         )
-
-    forecast_daily = session.get(
-            f"https://dataservice.accuweather.com/forecasts/v1/daily/5day/2274451?apikey=qhBeSntg5AV4KEv6AbtWQOOQKVnGAkY9&details=true",
-            expire_after=cache_expires,
-            )
 
     forecast_marine = session.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
@@ -128,11 +124,18 @@ def tides():
     )
 
 
-    for d in forecast_daily.json()['DailyForecasts']:
-        fig = add_sun_annot(fig, pd.to_datetime(d['Sun']['Rise']))
-        fig = add_sun_annot(fig, pd.to_datetime(d['Sun']['Set']))
+    for d in pd.date_range(start=start_date, end=end_date):
+        date = d.strftime('%Y-%m-%d')
+        astronomical = session.get(
+                f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz={offset}",
+                expire_after=cache_expires,
+                )
 
-
+        for s in astronomical.json()['properties']['data']['sundata']:
+            if s['phen'] in ["Begin Civil Twilight", "End Civil Twilight"]:
+                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"), color="blue")
+            if s['phen'] in  ["Rise", "Set"]:
+                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"))
 
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
 
@@ -158,8 +161,8 @@ def tides():
 
     fig.update_xaxes(
         range=[
-            f"{datetime.today().strftime('%Y-%m-%d')} 05:00:00",
-            f"{datetime.today().strftime('%Y-%m-%d')} 22:00:00"
+            local_now - timedelta(hours=2),
+            local_now + timedelta(hours=12),
             ],
         ticks="outside",
         ticklabelmode="period",

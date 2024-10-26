@@ -54,12 +54,12 @@ session = CachedSession()
 def tides():
     DAYS = 2
 
-    # start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
-    start_date = datetime.today().strftime('%Y%m%d')
-    end_date = (datetime.today() + timedelta(days = DAYS)).strftime('%Y%m%d')
-    today = datetime.today().strftime('%Y-%m-%d')
-
     local_now = datetime.now(pytz.timezone('US/Eastern'))
+    # start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
+    local_now = datetime.now(pytz.timezone('US/Eastern'))
+    start_date = local_now.strftime('%Y%m%d')
+    end_date = (local_now + timedelta(days = DAYS)).strftime('%Y%m%d')
+    today = local_now.strftime('%Y-%m-%d')
     offset = int(local_now.utcoffset().total_seconds()/60/60)
 
     if request.args.get('tides') == "bay":

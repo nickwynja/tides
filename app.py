@@ -162,7 +162,7 @@ def tides():
     fig.update_xaxes(
         range=[
             local_now - timedelta(hours=2),
-            local_now + timedelta(hours=12),
+            local_now + timedelta(hours=6),
             ],
         ticks="outside",
         ticklabelmode="period",
@@ -180,7 +180,7 @@ def tides():
 
     fig.update_layout(
             showlegend=False,
-            height=600,
+            height=500,
             margin=dict(l=10, r=10, t=40, b=40),
             )
 

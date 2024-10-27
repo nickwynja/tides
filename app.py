@@ -102,6 +102,21 @@ def tides():
     dc['Time'] = dc['Date'].dt.strftime("%H:%M")
     # dc['Knots'] = dc['Knots'].abs()
 
+    def until_next_event(row):
+        if row['Knots'] == 0 :
+            current = "Slack"
+            event = "Building"
+        else:
+            current = f"{row['Knots']} kt"
+            event = "Waning"
+        try:
+            until = f"{event} until {dc.iloc[row.name + 1]['Time']}"
+            return f"{current}<br>{until}"
+        except IndexError as e:
+            return None
+
+    dc['Event'] = dc.apply(until_next_event, axis=1)
+
     fig = go.Figure()
     fig.add_trace(
       go.Scatter(
@@ -118,8 +133,9 @@ def tides():
     fig.add_trace(
         go.Scatter(
           x=dc['Date'], y=dc['Knots'],
-          text=dc['Time'],
-          hovertemplate = '%{y} kt',
+          text=dc['Event'],
+          texttemplate=dc['Time'],
+          hovertemplate = "%{text}",
           mode='lines+markers+text',
           textposition='top center', # Adjust text position
           line_shape="spline",

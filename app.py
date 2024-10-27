@@ -25,9 +25,11 @@ if not app.debug:
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 
-def add_sun_annot(fig, when, color="orange"):
+def add_sun_annot(fig, when, color="orange", shift=20):
   fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
-  fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"), showarrow=False)
+  fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"),
+                     showarrow=False,
+                     xshift=shift)
   return fig
 
 def improve_text_position(x):
@@ -98,7 +100,7 @@ def tides():
     dc = pd.read_table(StringIO(currents_csv.text), sep=",", names=["Date", "Depth", "Knots", "meanFloodDir", "meanEbbDir", "Bin"], skiprows=1)
     dc['Date'] = pd.to_datetime(dc['Date'])
     dc['Time'] = dc['Date'].dt.strftime("%H:%M")
-    dc['Knots'] = dc['Knots'].abs()
+    # dc['Knots'] = dc['Knots'].abs()
 
     fig = go.Figure()
     fig.add_trace(
@@ -134,10 +136,17 @@ def tides():
                 )
 
         for s in astronomical.json()['properties']['data']['sundata']:
-            if s['phen'] in ["Begin Civil Twilight", "End Civil Twilight"]:
-                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"), color="blue")
-            if s['phen'] in  ["Rise", "Set"]:
+            if s['phen'] == "Begin Civil Twilight":
+                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"),
+                                    color="blue", shift=-20)
+            if s['phen'] == "End Civil Twilight":
+                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"),
+                                    color="blue", shift=20)
+            if s['phen'] ==  "Rise":
                 fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"))
+            if s['phen'] ==  "Set":
+                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"),
+                                    shift=-20)
 
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
 

@@ -211,6 +211,25 @@ def tides():
             showlegend=False,
             height=500,
             margin=dict(l=10, r=10, t=40, b=40),
+            updatemenus=[
+                dict(
+                    type="buttons",
+                    buttons=[
+                        dict(label="8h",
+                             method="relayout",
+                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=6)]]
+                             ),
+                        dict(label="12h",
+                             method="relayout",
+                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=10)]]
+                             ),
+                        dict(label="24h",
+                             method="relayout",
+                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=22)]]
+                             ),
+                        ],
+                    )
+                ],
             )
 
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')

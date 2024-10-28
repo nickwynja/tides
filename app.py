@@ -41,6 +41,10 @@ current_station_location = {
             "lat": 41.0263,
             "lon": -72.3847,
             },
+        "ACT2721": {  # Orient Pt
+            "lat": 41.1667,
+            "lon": -72.2517,
+            }
         }
 
 if not app.debug:
@@ -270,7 +274,7 @@ def tides():
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')
-    fig.add_annotation(x=local_now, yref="paper", y=0, text=local_now.strftime("%H:%M"),
+    fig.add_annotation(x=local_now, yref="paper", y=0.035, text=local_now.strftime("%H:%M"),
                      showarrow=False)
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 

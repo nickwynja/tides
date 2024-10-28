@@ -85,14 +85,21 @@ def tides():
             expire_after=cache_expires,
             )
 
+    app.logger.debug(f"Forcast cache hit: {forecast_marine.from_cache}")
+
     tides_csv = session.get(
             f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=csv",
             expire_after=cache_expires,
             )
+
+    app.logger.debug(f"Tides cache hit: {tides_csv.from_cache}")
+
     currents_csv = session.get(
             f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=6&format=csv",
             expire_after=cache_expires,
             )
+
+    app.logger.debug(f"Currents cache hit: {currents_csv.from_cache}")
 
     dt = pd.read_table(StringIO(tides_csv.text), sep=",", names=["Date", "Feet", "Type"], skiprows=1)
     dt['Date'] = pd.to_datetime(dt['Date'])
@@ -152,6 +159,7 @@ def tides():
                 f"https://api.sunrise-sunset.org/json?date={date}&lat={lat}&lng={lon}&tzid={tz}",
                 expire_after=cache_expires,
                 )
+        app.logger.debug(f"Sun cache hit: {astronomical.from_cache}")
         sun = astronomical.json()['results']
 
         # fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['astronomical_twilight_begin']}"),

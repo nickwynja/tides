@@ -20,6 +20,29 @@ from turbo_flask import Turbo
 app = Flask(__name__)
 turbo = Turbo(app)
 
+current_station_location = {
+        "ACT2781": {  # Rocky Point
+            "lat":  41.1438,
+            "lon": -72.3570,
+            },
+        "ACT2521": {  # Jennings Point
+            "lat": 41.0747,
+            "lon": -72.3825,
+            },
+        "ACT2841": {  # Horton Point
+            "lat": 41.1050,
+            "lon": -72.4567,
+            },
+        "LIS1012": {  # Plum Gut
+            "lat": 41.1592,
+            "lon": -72.2075,
+            },
+        "ACT2541": {  # Little Peconic Bay
+            "lat": 41.0263,
+            "lon": -72.3847,
+            },
+        }
+
 if not app.debug:
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
@@ -59,24 +82,18 @@ def tides():
     DAYS = 2
 
     local_now = datetime.now(pytz.timezone('US/Eastern'))
-    # start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
     tz = 'US/Eastern'
     local_now = datetime.now(pytz.timezone(tz))
-    start_date = local_now.strftime('%Y%m%d')
+    # start_date = local_now.strftime('%Y%m%d')
+    start_date = (datetime.today() - timedelta(days = 7)).strftime('%Y%m%d')
     end_date = (local_now + timedelta(days = DAYS)).strftime('%Y%m%d')
     today = local_now.strftime('%Y-%m-%d')
     # offset = int(local_now.utcoffset().total_seconds()/60/60)
 
-    if request.args.get('tides') == "bay":
-        tide_station = "8512114" # Southold
-        current_station = "ACT2521" # Jennings Pt
-        lat = 41.0338
-        lon = -72.4344
-    else:
-        tide_station = "8512053" # Hash
-        current_station = "ACT2781" # Rocky pt
-        lat = 41.1396742515397
-        lon = -72.35398912476371
+    current_station = request.args.get('current', 'ACT2781')
+    tide_station = request.args.get('tide', '8512053')
+    lat = current_station_location[current_station]['lat']
+    lon = current_station_location[current_station]['lon']
 
     cache_expires = seconds_until_hour()
 
@@ -87,25 +104,37 @@ def tides():
 
     app.logger.debug(f"Forcast cache hit: {forecast_marine.from_cache}")
 
-    tides_csv = session.get(
-            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=csv",
+    tides = session.get(
+            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             expire_after=cache_expires,
             )
 
-    app.logger.debug(f"Tides cache hit: {tides_csv.from_cache}")
+    app.logger.debug(f"Tides cache hit: {tides.from_cache}")
 
-    currents_csv = session.get(
-            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=6&format=csv",
-            expire_after=cache_expires,
-            )
+    dt = pd.DataFrame.from_dict(tides.json()['predictions'])
+    dt = dt.rename(columns={
+        't': 'Date',
+        'v': 'Feet',
+        'type': "Type"
+        })
 
-    app.logger.debug(f"Currents cache hit: {currents_csv.from_cache}")
-
-    dt = pd.read_table(StringIO(tides_csv.text), sep=",", names=["Date", "Feet", "Type"], skiprows=1)
     dt['Date'] = pd.to_datetime(dt['Date'])
+    dt['Feet'] = dt['Feet'].astype("float")
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
 
-    dc = pd.read_table(StringIO(currents_csv.text), sep=",", names=["Date", "Depth", "Knots", "meanFloodDir", "meanEbbDir", "Bin"], skiprows=1)
+    currents = session.get(
+            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
+            expire_after=cache_expires,
+            )
+
+    app.logger.debug(f"Currents cache hit: {currents.from_cache}")
+
+    dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])
+    dc = dc.rename(columns={
+        'Time': 'Date',
+        'Velocity_Major': 'Knots'
+        })
+
     dc['Date'] = pd.to_datetime(dc['Date'])
     dc['Time'] = dc['Date'].dt.strftime("%H:%M")
     # dc['Knots'] = dc['Knots'].abs()
@@ -245,7 +274,8 @@ def tides():
                      showarrow=False)
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
-    return render_template('index.html', fig_html=fig_html)
+    return render_template('index.html', fig_html=fig_html,
+                           current_station=current_station, tide_station=tide_station)
 
 if __name__ == '__main__':
     app.run(debug=True)

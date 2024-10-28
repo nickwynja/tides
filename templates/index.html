@@ -14,8 +14,28 @@
 </head>
 
 <body>
-<a href="/?tides=sound">Sound</a>
-<a href="/?tides=bay">Bay</a>
+
+<form action="/">
+  <label for="current">Current station:</label>
+  <select name="current">
+      <!-- <option value="ACT2721">Orient Pt</option> -->
+      <option value="ACT2781" {{'selected' if current_station == "ACT2781"}}>Rocky Pt</option>
+      <option value="ACT2841" {{'selected' if current_station == "ACT2841"}}>Horton Pt</option>
+      <option value="LIS1012" {{'selected' if current_station == "LIS1012"}}>Plum Gut</option>
+      <option value="ACT2541" {{'selected' if current_station == "ACT2541"}}>Little Peconic</option>
+      <option value="ACT2521" {{'selected' if current_station == "ACT2521"}}>Jennings Pt</option>
+  </select>
+  <label for="tide">Tide station:</label>
+  <select name="tide">
+      <option value="8512053" {{'selected' if tide_station == "8512053"}}>Hashamomuck Beach</option>
+      <option value="8512114" {{'selected' if tide_station == "8512114"}}>Southold</option>
+      <option value="8511671" {{'selected' if tide_station == "8511671"}}>Orient Harbor</option>
+      <option value="8511236" {{'selected' if tide_station == "8511236"}}>Plum Gut</option>
+      <option value="8511907" {{'selected' if tide_station == "8511907"}}>Greenport</option>
+  </select>
+  <input type="submit" value="Submit">
+</form>
+
 {{ fig_html | safe }}
 
 <!-- https://sunrise-sunset.org/api -->

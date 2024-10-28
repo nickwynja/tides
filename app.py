@@ -215,9 +215,9 @@ def tides():
                 dict(
                     type="buttons",
                     buttons=[
-                        dict(label="8h",
+                        dict(label="4h",
                              method="relayout",
-                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=6)]]
+                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=2)]]
                              ),
                         dict(label="12h",
                              method="relayout",

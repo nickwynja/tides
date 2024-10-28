@@ -60,11 +60,12 @@ def tides():
 
     local_now = datetime.now(pytz.timezone('US/Eastern'))
     # start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
-    local_now = datetime.now(pytz.timezone('US/Eastern'))
+    tz = 'US/Eastern'
+    local_now = datetime.now(pytz.timezone(tz))
     start_date = local_now.strftime('%Y%m%d')
     end_date = (local_now + timedelta(days = DAYS)).strftime('%Y%m%d')
     today = local_now.strftime('%Y-%m-%d')
-    offset = int(local_now.utcoffset().total_seconds()/60/60)
+    # offset = int(local_now.utcoffset().total_seconds()/60/60)
 
     if request.args.get('tides') == "bay":
         tide_station = "8512114" # Southold
@@ -147,22 +148,23 @@ def tides():
     for d in pd.date_range(start=start_date, end=end_date):
         date = d.strftime('%Y-%m-%d')
         astronomical = session.get(
-                f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz={offset}",
+                # f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz={offset}",
+                f"https://api.sunrise-sunset.org/json?date={date}&lat={lat}&lng={lon}&tzid={tz}",
                 expire_after=cache_expires,
                 )
+        sun = astronomical.json()['results']
 
-        for s in astronomical.json()['properties']['data']['sundata']:
-            if s['phen'] == "Begin Civil Twilight":
-                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"),
-                                    color="blue", shift=-20)
-            if s['phen'] == "End Civil Twilight":
-                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"),
-                                    color="blue", shift=20)
-            if s['phen'] ==  "Rise":
-                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"))
-            if s['phen'] ==  "Set":
-                fig = add_sun_annot(fig, pd.to_datetime(f"{date} {s['time']}"),
-                                    shift=-20)
+        # fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['astronomical_twilight_begin']}"),
+        #                     color="grey", shift=-20)
+        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['nautical_twilight_begin']}"),
+                            color="blue", shift=-20)
+        # fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['civil_twilight_begin']}"),
+        #                     color="grey", shift=-20)
+        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunrise']}"))
+        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunset']}"), shift=-20)
+        fig = add_sun_annot(fig,
+                            pd.to_datetime(f"{date} {sun['nautical_twilight_end']}"),
+                            color="blue", shift=20)
 
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
 

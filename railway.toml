@@ -3,6 +3,6 @@ builder = "NIXPACKS"
 
 [deploy]
 numReplicas = 1
-startCommand = "gunicorn -p $PORT app:app"
+startCommand = "gunicorn -p $PORT --threads 100 --log-level debug app:app"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

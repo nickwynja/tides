@@ -88,8 +88,8 @@ def tides():
     local_now = datetime.now(pytz.timezone('US/Eastern'))
     tz = 'US/Eastern'
     local_now = datetime.now(pytz.timezone(tz))
-    # start_date = local_now.strftime('%Y%m%d')
-    start_date = (datetime.today() - timedelta(days = 7)).strftime('%Y%m%d')
+    start_date = local_now.strftime('%Y%m%d')
+    # start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
     end_date = (local_now + timedelta(days = DAYS)).strftime('%Y%m%d')
     today = local_now.strftime('%Y-%m-%d')
     # offset = int(local_now.utcoffset().total_seconds()/60/60)
@@ -99,18 +99,15 @@ def tides():
     lat = current_station_location[current_station]['lat']
     lon = current_station_location[current_station]['lon']
 
-    cache_expires = seconds_until_hour()
-
     forecast_marine = session.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
-            expire_after=cache_expires,
+            expire_after=seconds_until_hour(),
             )
 
     app.logger.debug(f"Forcast cache hit: {forecast_marine.from_cache}")
 
     tides = session.get(
             f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
-            expire_after=cache_expires,
             )
 
     app.logger.debug(f"Tides cache hit: {tides.from_cache}")
@@ -128,7 +125,6 @@ def tides():
 
     currents = session.get(
             f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
-            expire_after=cache_expires,
             )
 
     app.logger.debug(f"Currents cache hit: {currents.from_cache}")
@@ -190,7 +186,6 @@ def tides():
         astronomical = session.get(
                 # f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz={offset}",
                 f"https://api.sunrise-sunset.org/json?date={date}&lat={lat}&lng={lon}&tzid={tz}",
-                expire_after=cache_expires,
                 )
         app.logger.debug(f"Sun cache hit: {astronomical.from_cache}")
         sun = astronomical.json()['results']

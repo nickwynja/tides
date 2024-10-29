@@ -78,7 +78,7 @@ def deg_to_compass(num):
     arr=["N","NNE","NE","ENE","E","ESE", "SE", "SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]
     return arr[(val % 16)]
 
-def until_next_event(row):
+def until_next_event(row, df):
     if row['Knots'] == 0 :
         current = f"Slack at {row['Time']}"
         event = "Building"
@@ -86,7 +86,7 @@ def until_next_event(row):
         current = f"{row['Knots']} kt at {row['Time']}"
         event = "Waning"
     try:
-        until = f"{event} until {dc.iloc[row.name + 1]['Time']}"
+        until = f"{event} until {df.iloc[row.name + 1]['Time']}"
         return f"{current}<br>{until}"
     except IndexError as e:
         return None
@@ -160,7 +160,7 @@ def tides():
 
     dc['Date'] = pd.to_datetime(dc['Date'])
     dc['Time'] = dc['Date'].dt.strftime("%H:%M")
-    dc['Event'] = dc.apply(until_next_event, axis=1)
+    dc['Event'] = dc.apply(until_next_event, df=dc, axis=1)
 
     fig = go.Figure()
     fig.add_trace(

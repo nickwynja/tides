@@ -169,7 +169,7 @@ def tides():
 
     def until_next_event(row):
         if row['Knots'] == 0 :
-            current = "Slack"
+            current = f"Slack at {row['Time']}"
             event = "Building"
         else:
             current = f"{row['Knots']} kt at {row['Time']}"

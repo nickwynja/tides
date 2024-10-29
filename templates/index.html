@@ -39,6 +39,15 @@
 
 {{ fig_html | safe }}
 
+<table>
+    {% for f in forecast %}
+    <tr>
+        <td>{{ f.when}}</td>
+        <td>{{ f.text}}</td>
+    </tr>
+    {% endfor %}
+</table>
+
 <!-- https://sunrise-sunset.org/api -->
 </body>
 </html>

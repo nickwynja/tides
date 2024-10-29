@@ -104,6 +104,24 @@ def tides():
             expire_after=seconds_until_hour(),
             )
 
+    forecast_daily = session.get(
+            f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
+            expire_after=seconds_until_hour(),
+            )
+
+    app.logger.debug(f"Forcast wx cache hit: {forecast_daily.from_cache}")
+
+    forecast_periods = forecast_daily.json()['time']['startPeriodName']
+    forecast_text = forecast_daily.json()['data']['text']
+
+    forecast = []
+
+    for idx, text in enumerate(forecast_text[:DAYS*2]):
+        forecast.append({
+                "when": forecast_periods[idx],
+                "text": text,
+                })
+
     app.logger.debug(f"Forcast cache hit: {forecast_marine.from_cache}")
 
     tides = session.get(
@@ -274,7 +292,10 @@ def tides():
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
     return render_template('index.html', fig_html=fig_html,
-                           current_station=current_station, tide_station=tide_station)
+                           current_station=current_station,
+                           tide_station=tide_station,
+                           forecast=forecast,
+                           )
 
 if __name__ == '__main__':
     app.run(debug=True)

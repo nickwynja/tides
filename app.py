@@ -19,6 +19,7 @@ from turbo_flask import Turbo
 
 app = Flask(__name__)
 turbo = Turbo(app)
+session = CachedSession()
 
 current_station_location = {
         "ACT2781": {  # Rocky Point
@@ -61,7 +62,6 @@ def add_sun_annot(fig, when, color="orange", shift=20):
 
 def improve_text_position(x):
     """ it is more efficient if the x values are sorted """
-    # fix indentation
     positions = ['bottom center', 'top center']  # you can add more: left center ...
     return [positions[i % len(positions)] for i in range(len(x))]
 
@@ -78,38 +78,40 @@ def deg_to_compass(num):
     arr=["N","NNE","NE","ENE","E","ESE", "SE", "SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]
     return arr[(val % 16)]
 
+def until_next_event(row):
+    if row['Knots'] == 0 :
+        current = f"Slack at {row['Time']}"
+        event = "Building"
+    else:
+        current = f"{row['Knots']} kt at {row['Time']}"
+        event = "Waning"
+    try:
+        until = f"{event} until {dc.iloc[row.name + 1]['Time']}"
+        return f"{current}<br>{until}"
+    except IndexError as e:
+        return None
 
-session = CachedSession()
 
 @app.route('/')
 def tides():
     DAYS = 2
 
-    local_now = datetime.now(pytz.timezone('US/Eastern'))
     tz = 'US/Eastern'
     local_now = datetime.now(pytz.timezone(tz))
     start_date = local_now.strftime('%Y%m%d')
-    # start_date = (datetime.today() - timedelta(days = 1)).strftime('%Y%m%d')
     end_date = (local_now + timedelta(days = DAYS)).strftime('%Y%m%d')
     today = local_now.strftime('%Y-%m-%d')
-    # offset = int(local_now.utcoffset().total_seconds()/60/60)
 
     current_station = request.args.get('current', 'ACT2781')
     tide_station = request.args.get('tide', '8512053')
     lat = current_station_location[current_station]['lat']
     lon = current_station_location[current_station]['lon']
 
-    forecast_marine = session.get(
-            f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
-            expire_after=seconds_until_hour(),
-            )
-
     forecast_daily = session.get(
             f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
             expire_after=seconds_until_hour(),
             )
 
-    app.logger.debug(f"Forcast wx cache hit: {forecast_daily.from_cache}")
 
     forecast_periods = forecast_daily.json()['time']['startPeriodName']
     forecast_text = forecast_daily.json()['data']['text']
@@ -122,8 +124,6 @@ def tides():
                 "text": text,
                 })
 
-    app.logger.debug(f"Forcast cache hit: {forecast_marine.from_cache}")
-
     MTK = "8510560"
 
     water_temperature = session.get(
@@ -133,12 +133,9 @@ def tides():
 
     water_temp = water_temperature.json()['data'][-1]
 
-    app.logger.debug(f"Forcast wx cache hit: {forecast_daily.from_cache}")
     tides = session.get(
             f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
-
-    app.logger.debug(f"Tides cache hit: {tides.from_cache}")
 
     dt = pd.DataFrame.from_dict(tides.json()['predictions'])
     dt = dt.rename(columns={
@@ -155,8 +152,6 @@ def tides():
             f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
 
-    app.logger.debug(f"Currents cache hit: {currents.from_cache}")
-
     dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])
     dc = dc.rename(columns={
         'Time': 'Date',
@@ -165,21 +160,6 @@ def tides():
 
     dc['Date'] = pd.to_datetime(dc['Date'])
     dc['Time'] = dc['Date'].dt.strftime("%H:%M")
-    # dc['Knots'] = dc['Knots'].abs()
-
-    def until_next_event(row):
-        if row['Knots'] == 0 :
-            current = f"Slack at {row['Time']}"
-            event = "Building"
-        else:
-            current = f"{row['Knots']} kt at {row['Time']}"
-            event = "Waning"
-        try:
-            until = f"{event} until {dc.iloc[row.name + 1]['Time']}"
-            return f"{current}<br>{until}"
-        except IndexError as e:
-            return None
-
     dc['Event'] = dc.apply(until_next_event, axis=1)
 
     fig = go.Figure()
@@ -208,32 +188,27 @@ def tides():
         )
     )
 
-
     for d in pd.date_range(start=start_date, end=end_date):
         date = d.strftime('%Y-%m-%d')
         astronomical = session.get(
-                # f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz={offset}",
                 f"https://api.sunrise-sunset.org/json?date={date}&lat={lat}&lng={lon}&tzid={tz}",
                 )
-        app.logger.debug(f"Sun cache hit: {astronomical.from_cache}")
         sun = astronomical.json()['results']
-
-        # fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['astronomical_twilight_begin']}"),
-        #                     color="grey", shift=-20)
         fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['nautical_twilight_begin']}"),
                             color="blue", shift=-20)
-        # fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['civil_twilight_begin']}"),
-        #                     color="grey", shift=-20)
         fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunrise']}"))
         fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunset']}"), shift=-20)
         fig = add_sun_annot(fig,
                             pd.to_datetime(f"{date} {sun['nautical_twilight_end']}"),
                             color="blue", shift=20)
 
+    forecast_marine = session.get(
+            f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
+            expire_after=seconds_until_hour(),
+            )
+
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
-
     root = tree.getroot()
-
     times = root.findall('.//start-valid-time')
     wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
     wind_gusts = root.findall('.//wind-speed[@type="gust"]/value')
@@ -272,7 +247,6 @@ def tides():
             gridcolor='white'
         )
     )
-
 
     fig.update_layout(
             showlegend=False,

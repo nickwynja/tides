@@ -233,8 +233,8 @@ def tides():
     for idx,t in enumerate(times[:36]):
         time = t.text
         # gusts = f"<br>{wind_gusts[idx].text}kt gusts" if wind_gusts[idx].text else ""
-        cond = f"{wind_speeds[idx].text}kt<br>{deg_to_compass(wind_dir[idx].text)}<br>{waves[idx].text}ft"
-        fig.add_annotation(x=time, yref="paper", y=1, text=cond, showarrow=False)
+        cond = f"{deg_to_compass(wind_dir[idx].text)} {wind_speeds[idx].text}kt"
+        fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
 
     fig.update_traces(textposition=improve_text_position(dc['Time']))
 

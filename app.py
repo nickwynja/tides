@@ -124,6 +124,16 @@ def tides():
 
     app.logger.debug(f"Forcast cache hit: {forecast_marine.from_cache}")
 
+    MTK = "8510560"
+
+    water_temperature = session.get(
+            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={MTK}&time_zone=lst_ldt&units=english&interval=6&format=json",
+            expire_after=seconds_until_hour(),
+            )
+
+    water_temp = water_temperature.json()['data'][-1]
+
+    app.logger.debug(f"Forcast wx cache hit: {forecast_daily.from_cache}")
     tides = session.get(
             f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
@@ -162,7 +172,7 @@ def tides():
             current = "Slack"
             event = "Building"
         else:
-            current = f"{row['Knots']} kt"
+            current = f"{row['Knots']} kt at {row['Time']}"
             event = "Waning"
         try:
             until = f"{event} until {dc.iloc[row.name + 1]['Time']}"
@@ -191,7 +201,7 @@ def tides():
           text=dc['Event'],
           texttemplate=dc['Time'],
           hovertemplate = "%{text}",
-          mode='lines+markers+text',
+          mode='lines+markers',
           textposition='top center', # Adjust text position
           line_shape="spline",
           name='Current'
@@ -230,11 +240,14 @@ def tides():
     wind_dir = root.findall('.//direction[@type="wind"]/value')
     waves = root.findall('.//waves[@type="significant"]/value')
 
-    for idx,t in enumerate(times[:36]):
-        time = t.text
-        # gusts = f"<br>{wind_gusts[idx].text}kt gusts" if wind_gusts[idx].text else ""
-        cond = f"{deg_to_compass(wind_dir[idx].text)} {wind_speeds[idx].text}kt"
-        fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
+    for idx,t in enumerate(times[:24]):
+        if (idx + 1) % 2 == 0:  # skip every other hour
+            pass
+        else:
+            time = t.text
+            # gusts = f"<br>{wind_gusts[idx].text}kt gusts" if wind_gusts[idx].text else ""
+            cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
+            fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
 
     fig.update_traces(textposition=improve_text_position(dc['Time']))
 
@@ -287,14 +300,13 @@ def tides():
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')
-    fig.add_annotation(x=local_now, yref="paper", y=0.035, text=local_now.strftime("%H:%M"),
-                     showarrow=False)
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
     return render_template('index.html', fig_html=fig_html,
                            current_station=current_station,
                            tide_station=tide_station,
                            forecast=forecast,
+                           water_temp=water_temp,
                            )
 
 if __name__ == '__main__':

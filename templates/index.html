@@ -50,6 +50,8 @@ td {
 
 {{ fig_html | safe }}
 
+<h3>WX</h3>
+
 <table>
     {% for f in forecast %}
     <tr>
@@ -58,6 +60,24 @@ td {
     </tr>
     {% endfor %}
 </table>
+
+<h3>Observations</h3>
+
+<table>
+    <tr>
+        <td>Station:</td>
+        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id=8510560">MTK (8510560)</a></td>
+    </tr>
+    <tr>
+        <td>Water temp:</td>
+        <td>{{ water_temp['v'] }}&deg;F</td>
+    </tr>
+    <tr>
+        <td>Updated at:</td>
+        <td>{{ water_temp['t'] }}</td>
+    </tr>
+</table>
+
 
 <!-- https://sunrise-sunset.org/api -->
 </body>

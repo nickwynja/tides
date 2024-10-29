@@ -27,8 +27,8 @@ td {
 <body>
 
 <form action="/">
-  <label for="current">Current station:</label>
-  <select name="current">
+  <label for="current">C:</label>
+  <select name="current" id="current">
       <!-- <option value="ACT2721">Orient Pt</option> -->
       <option value="ACT2781" {{'selected' if current_station == "ACT2781"}}>Rocky Pt</option>
       <option value="ACT2721" {{'selected' if current_station == "ACT2721"}}>Orient Pt</option>
@@ -37,8 +37,8 @@ td {
       <option value="ACT2521" {{'selected' if current_station == "ACT2521"}}>Jennings Pt</option>
       <option value="ACT2541" {{'selected' if current_station == "ACT2541"}}>Little Peconic</option>
   </select>
-  <label for="tide">Tide station:</label>
-  <select name="tide">
+  <label for="tide">T:</label>
+  <select name="tide" id="tide">
       <option value="8512053" {{'selected' if tide_station == "8512053"}}>Hashamomuck Beach</option>
       <option value="8512114" {{'selected' if tide_station == "8512114"}}>Southold</option>
       <option value="8511671" {{'selected' if tide_station == "8511671"}}>Orient Harbor</option>

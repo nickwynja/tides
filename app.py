@@ -21,32 +21,7 @@ app = Flask(__name__)
 turbo = Turbo(app)
 session = CachedSession()
 
-current_station_location = {
-        "ACT2781": {  # Rocky Point
-            "lat":  41.1438,
-            "lon": -72.3570,
-            },
-        "ACT2521": {  # Jennings Point
-            "lat": 41.0747,
-            "lon": -72.3825,
-            },
-        "ACT2841": {  # Horton Point
-            "lat": 41.1050,
-            "lon": -72.4567,
-            },
-        "LIS1012": {  # Plum Gut
-            "lat": 41.1592,
-            "lon": -72.2075,
-            },
-        "ACT2541": {  # Little Peconic Bay
-            "lat": 41.0263,
-            "lon": -72.3847,
-            },
-        "ACT2721": {  # Orient Pt
-            "lat": 41.1667,
-            "lon": -72.2517,
-            }
-        }
+NOAA_TC_API = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 
 if not app.debug:
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -91,6 +66,31 @@ def until_next_event(row, df):
     except IndexError as e:
         return None
 
+def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
+    """ from https://github.com/GClunies/noaa_coops"""
+    station_list = []
+    if station_type:
+        data_url = f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type={station_type}"
+    else:
+        data_url = "https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json"
+    response = requests.get(data_url)
+    json_dict = response.json()
+
+    if len(lat_coords) != 2 or len(lon_coords) != 2:
+        raise ValueError("lat_coords and lon_coords must be of length 2.")
+
+    # Ensure lat_coords and lon_coords are in the correct order
+    lat_coords = sorted(lat_coords)
+    lon_coords = sorted(lon_coords)
+
+    # Find stations in bounding box
+    for station_dict in json_dict["stations"]:
+        if lon_coords[0] < station_dict["lng"] < lon_coords[1]:
+            if lat_coords[0] < station_dict["lat"] < lat_coords[1]:
+                station_list.append(station_dict)
+
+    return station_list
+
 
 @app.route('/')
 def tides():
@@ -102,10 +102,27 @@ def tides():
     end_date = (local_now + timedelta(days = DAYS)).strftime('%Y%m%d')
     today = local_now.strftime('%Y-%m-%d')
 
+    local_current_stations = get_stations_from_bbox(
+            lat_coords=[40.665035,41.224138],
+            lon_coords=[-71.727081, -72.736450],
+            station_type="currentpredictions"
+            )
+
+    local_tide_stations = get_stations_from_bbox(
+            lat_coords=[40.665035,41.224138],
+            lon_coords=[-71.727081, -72.736450],
+            station_type="tidepredictions"
+            )
+
     current_station = request.args.get('current', 'ACT2781')
     tide_station = request.args.get('tide', '8512053')
-    lat = current_station_location[current_station]['lat']
-    lon = current_station_location[current_station]['lon']
+
+    station_metadata = session.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station}.json",
+            ).json()
+
+    lat = station_metadata['stations'][0]['lat']
+    lon = station_metadata['stations'][0]['lng']
 
     forecast_daily = session.get(
             f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
@@ -127,14 +144,14 @@ def tides():
     MTK = "8510560"
 
     water_temperature = session.get(
-            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={MTK}&time_zone=lst_ldt&units=english&interval=6&format=json",
+            f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={MTK}&time_zone=lst_ldt&units=english&interval=6&format=json",
             expire_after=seconds_until_hour(),
             )
 
     water_temp = water_temperature.json()['data'][-1]
 
     tides = session.get(
-            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
+            f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
 
     dt = pd.DataFrame.from_dict(tides.json()['predictions'])
@@ -149,7 +166,7 @@ def tides():
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
 
     currents = session.get(
-            f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
+            f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
 
     dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])
@@ -279,6 +296,8 @@ def tides():
     return render_template('index.html', fig_html=fig_html,
                            current_station=current_station,
                            tide_station=tide_station,
+                           local_current_stations=local_current_stations,
+                           local_tide_stations=local_tide_stations,
                            forecast=forecast,
                            water_temp=water_temp,
                            )

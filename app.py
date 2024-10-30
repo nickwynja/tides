@@ -114,11 +114,14 @@ def tides():
             station_type="tidepredictions"
             )
 
-    current_station = request.args.get('current', 'ACT2781')
-    tide_station = request.args.get('tide', '8512053')
+    param_current = request.args.get('current', 'ACT2781')
+    param_tide = request.args.get('tide', '8512053')
+
+    current_station = [x for x in local_current_stations if x['id'] == param_current][0]
+    tide_station = [x for x in local_tide_stations if x['id'] == param_tide][0]
 
     station_metadata = session.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station}.json",
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station['id']}.json",
             ).json()
 
     lat = station_metadata['stations'][0]['lat']
@@ -151,7 +154,7 @@ def tides():
     water_temp = water_temperature.json()['data'][-1]
 
     tides = session.get(
-            f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
+            f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
 
     dt = pd.DataFrame.from_dict(tides.json()['predictions'])
@@ -166,7 +169,7 @@ def tides():
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
 
     currents = session.get(
-            f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
+            f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
 
     dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])

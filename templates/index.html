@@ -30,13 +30,13 @@ td {
   <label for="current">C:</label>
   <select name="current" id="current">
       {% for s in local_current_stations | selectattr("currbin", "equalto", 1) | sort(attribute='name') %}
-      <option value="{{s.id}}" {{'selected' if current_station == s.id}} >{{ s.name }}</option>
+      <option value="{{s.id}}" {{'selected' if current_station['id'] == s['id']}} >{{ s.name }}</option>
       {% endfor %}
   </select>
   <label for="tide">T:</label>
   <select name="tide" id="tide">
       {% for s in local_tide_stations | sort(attribute='name') %}
-      <option value="{{s.id}}" {{'selected' if tide_station == s.id}} >{{ s.name }}</option>
+      <option value="{{s.id}}" {{'selected' if tide_station['id'] == s['id']}} >{{ s.name }}</option>
       {% endfor %}
   </select>
   <input type="submit" value="Submit">
@@ -72,6 +72,18 @@ td {
     </tr>
 </table>
 
+<h3>Stations</h3>
+
+<table>
+    <tr>
+        <td>Current:</td>
+        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ current_station['id'] }}"</a>{{ current_station['name'] }}</td>
+    </tr>
+    <tr>
+        <td>Tide:</td>
+        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ tide_station['id'] }}"</a>{{ tide_station['name'] }}</td>
+    </tr>
+</table>
 
 <!-- https://sunrise-sunset.org/api -->
 </body>

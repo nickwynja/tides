@@ -72,7 +72,7 @@ td {
     </tr>
 </table>
 
-<h3>Stations</h3>
+<h3>Station Details</h3>
 
 <table>
     <tr>
@@ -80,8 +80,16 @@ td {
         <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ current_station['id'] }}"</a>{{ current_station['name'] }}</td>
     </tr>
     <tr>
+        <td></td>
+        <td>{{ current_station['lat'] }}, {{ current_station['lng'] }}</td>
+    </tr>
+    <tr>
         <td>Tide:</td>
         <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ tide_station['id'] }}"</a>{{ tide_station['name'] }}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>{{ tide_station['lat'] }}, {{ tide_station['lng'] }}</td>
     </tr>
 </table>
 

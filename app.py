@@ -3,13 +3,13 @@ from urllib.parse import urlparse
 import logging
 import re
 import requests
+import requests_cache
 import json
 from datetime import datetime, timedelta
 import pandas as pd
 from io import StringIO
 import plotly.express as px
 import plotly.graph_objects as go
-from requests_cache import CachedSession
 import pprint
 import math
 import xml.etree.ElementTree as ET
@@ -19,7 +19,9 @@ from turbo_flask import Turbo
 
 app = Flask(__name__)
 turbo = Turbo(app)
-session = CachedSession()
+
+# https://requests-cache.readthedocs.io/en/stable/user_guide/general.html#patching
+requests_cache.install_cache()
 
 NOAA_TC_API = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 
@@ -120,14 +122,14 @@ def tides():
     current_station = [x for x in local_current_stations if x['id'] == param_current][0]
     tide_station = [x for x in local_tide_stations if x['id'] == param_tide][0]
 
-    station_metadata = session.get(
+    station_metadata = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station['id']}.json",
             ).json()
 
     lat = station_metadata['stations'][0]['lat']
     lon = station_metadata['stations'][0]['lng']
 
-    forecast_daily = session.get(
+    forecast_daily = requests.get(
             f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
             expire_after=seconds_until_hour(),
             )
@@ -146,14 +148,14 @@ def tides():
 
     MTK = "8510560"
 
-    water_temperature = session.get(
+    water_temperature = requests.get(
             f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={MTK}&time_zone=lst_ldt&units=english&interval=6&format=json",
             expire_after=seconds_until_hour(),
             )
 
     water_temp = water_temperature.json()['data'][-1]
 
-    tides = session.get(
+    tides = requests.get(
             f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
 
@@ -168,7 +170,7 @@ def tides():
     dt['Feet'] = dt['Feet'].astype("float")
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
 
-    currents = session.get(
+    currents = requests.get(
             f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
 
@@ -208,12 +210,33 @@ def tides():
         )
     )
 
+    moon_data = []
+
     for d in pd.date_range(start=start_date, end=end_date):
         date = d.strftime('%Y-%m-%d')
-        astronomical = session.get(
+        sun = requests.get(
                 f"https://api.sunrise-sunset.org/json?date={date}&lat={lat}&lng={lon}&tzid={tz}",
-                )
-        sun = astronomical.json()['results']
+                ).json()['results']
+
+        moon = requests.get(
+                f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz=-4",
+                ).json()['properties']['data']
+
+        moon_fracillum = float(moon['fracillum'].removesuffix('%')) / 100
+
+        for m in moon['moondata']:
+            moon_data.append({'time': pd.to_datetime(f"{date} {m['time']}"),
+             'phen': m['phen'],
+             'fracillum': moon_fracillum,
+             'value': 5 * moon_fracillum if m['phen'] == "Upper Transit" else 0,
+             })
+
+            if m['phen'] == "Upper Transit":  #add opposite in 12 hours to smooth chart
+                moon_data.append({'time': pd.to_datetime(f"{date} {m['time']}") + timedelta(hours=12),
+                 'phen': "opposite",
+                 'value': None,
+                 })
+
         fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['nautical_twilight_begin']}"),
                             color="blue", shift=-20)
         fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunrise']}"))
@@ -222,7 +245,25 @@ def tides():
                             pd.to_datetime(f"{date} {sun['nautical_twilight_end']}"),
                             color="blue", shift=20)
 
-    forecast_marine = session.get(
+
+    moon_data = sorted(moon_data, key=lambda d: d['time'])
+    dm = pd.DataFrame(moon_data)
+
+    fig.add_trace(
+        go.Scatter(
+          x=dm['time'], y=dm['value'],
+          text=dm['fracillum'],
+          # texttemplate=dc['Time'],
+          # hovertemplate = "%{text}",
+          mode='lines+markers',
+          textposition='top center', # Adjust text position
+          line_shape="spline",
+          line_color="#888",
+          name='Moon'
+        )
+    )
+
+    forecast_marine = requests.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
             expire_after=seconds_until_hour(),
             )
@@ -244,7 +285,8 @@ def tides():
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
             fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
 
-    fig.update_traces(textposition=improve_text_position(dc['Time']))
+    fig.update_traces(textposition=improve_text_position(dc['Time']),
+                      connectgaps=None)
 
     fig.update_yaxes(
      fixedrange = True,

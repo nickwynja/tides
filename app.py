@@ -326,6 +326,7 @@ def tides():
         ticklabelmode="period",
         tickcolor= "black",
         ticklen=10,
+        tickangle=0,
         minor=dict(
             ticklen=4,
             dtick=60*60*1000,

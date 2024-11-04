@@ -96,23 +96,38 @@ def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
 
 @app.route('/')
 def tides():
-    DAYS = 2
+    DAYS = 5
 
     tz = 'US/Eastern'
     local_now = datetime.now(pytz.timezone(tz))
-    start_date = local_now.strftime('%Y%m%d')
-    end_date = (local_now + timedelta(days = DAYS)).strftime('%Y%m%d')
+    tz_offset = int(local_now.utcoffset().total_seconds()/60/60)
+    # start_date = local_now.strftime('%Y%m%d')
+    start_date_dt = (local_now - timedelta(days = 1))
+    end_date_dt = (local_now + timedelta(days = DAYS))
+    start_date = start_date_dt.strftime('%Y%m%d')
+    end_date = end_date_dt.strftime('%Y%m%d')
     today = local_now.strftime('%Y-%m-%d')
 
+    bbox = {
+            "lat": [
+                40.665035,
+                41.224138,
+                ],
+            "lon": [
+                -71.727081,
+                -72.736450,
+                ]
+            }
+
     local_current_stations = get_stations_from_bbox(
-            lat_coords=[40.665035,41.224138],
-            lon_coords=[-71.727081, -72.736450],
+            lat_coords=bbox['lat'],
+            lon_coords=bbox['lon'],
             station_type="currentpredictions"
             )
 
     local_tide_stations = get_stations_from_bbox(
-            lat_coords=[40.665035,41.224138],
-            lon_coords=[-71.727081, -72.736450],
+            lat_coords=bbox['lat'],
+            lon_coords=bbox['lon'],
             station_type="tidepredictions"
             )
 
@@ -170,6 +185,8 @@ def tides():
     dt['Feet'] = dt['Feet'].astype("float")
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
 
+    tide_max = dt['Feet'].max()  # used in chart for max moon %
+
     currents = requests.get(
             f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
@@ -219,22 +236,25 @@ def tides():
                 ).json()['results']
 
         moon = requests.get(
-                f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz=-4",
+                f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz={tz_offset}",
                 ).json()['properties']['data']
 
-        moon_fracillum = float(moon['fracillum'].removesuffix('%')) / 100
+        moon_fracillum_float = float(moon['fracillum'].removesuffix('%')) / 100
 
-        for m in moon['moondata']:
-            moon_data.append({'time': pd.to_datetime(f"{date} {m['time']}"),
+        for idx,m in enumerate(moon['moondata']):
+            time = pd.to_datetime(f"{date} {m['time']}")
+            moon_data.append({'time': time,
              'phen': m['phen'],
-             'fracillum': moon_fracillum,
-             'value': 5 * moon_fracillum if m['phen'] == "Upper Transit" else 0,
+             'fracillum': moon_fracillum_float,
+             'value': tide_max * moon_fracillum_float if m['phen'] == "Upper Transit" else 0,
+                              'text': f"Moon {m['phen'].lower()} at {time.strftime('%H:%m')}<br>{moon['closestphase']['phase']}<br>{moon['fracillum']} Illumination<br>",
              })
 
             if m['phen'] == "Upper Transit":  #add opposite in 12 hours to smooth chart
                 moon_data.append({'time': pd.to_datetime(f"{date} {m['time']}") + timedelta(hours=12),
                  'phen': "opposite",
                  'value': None,
+                 'text': "",
                  })
 
         fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['nautical_twilight_begin']}"),
@@ -252,9 +272,9 @@ def tides():
     fig.add_trace(
         go.Scatter(
           x=dm['time'], y=dm['value'],
-          text=dm['fracillum'],
-          # texttemplate=dc['Time'],
-          # hovertemplate = "%{text}",
+          text=dm['text'],
+          texttemplate=dm['text'],
+          hovertemplate = "%{text}",
           mode='lines+markers',
           textposition='top center', # Adjust text position
           line_shape="spline",
@@ -295,8 +315,10 @@ def tides():
     fig.update_xaxes(
         range=[
             local_now - timedelta(hours=2),
-            local_now + timedelta(hours=6),
+            local_now + timedelta(hours=12),
             ],
+        minallowed=start_date_dt,
+        maxallowed=end_date_dt,
         ticks="outside",
         ticklabelmode="period",
         tickcolor= "black",
@@ -314,25 +336,25 @@ def tides():
             showlegend=False,
             height=500,
             margin=dict(l=10, r=10, t=40, b=40),
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    buttons=[
-                        dict(label="4h",
-                             method="relayout",
-                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=2)]]
-                             ),
-                        dict(label="12h",
-                             method="relayout",
-                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=10)]]
-                             ),
-                        dict(label="24h",
-                             method="relayout",
-                             args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=22)]]
-                             ),
-                        ],
-                    )
-                ],
+            # updatemenus=[
+            #     dict(
+            #         type="buttons",
+            #         buttons=[
+            #             dict(label="4h",
+            #                  method="relayout",
+            #                  args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=2)]]
+            #                  ),
+            #             dict(label="12h",
+            #                  method="relayout",
+            #                  args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=10)]]
+            #                  ),
+            #             dict(label="24h",
+            #                  method="relayout",
+            #                  args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=22)]]
+            #                  ),
+            #             ],
+            #         )
+            #     ],
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')

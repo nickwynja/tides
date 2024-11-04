@@ -63,7 +63,10 @@ def until_next_event(row, df):
         current = f"{row['Knots']} kt at {row['Time']}"
         event = "Waning"
     try:
-        until = f"{event} until {df.iloc[row.name + 1]['Time']}"
+        next_event = pd.to_datetime(df.iloc[row.name + 1]['Date'])
+        time_until = (next_event - pd.to_datetime(row['Date']))
+        until_string = f"{time_until.seconds // 3600}h {(time_until.seconds//60)%60}m"
+        until = f"{event} for {until_string} until {next_event.strftime('%H:%m')}"
         return f"{current}<br>{until}"
     except IndexError as e:
         return None

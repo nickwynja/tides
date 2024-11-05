@@ -15,7 +15,7 @@ import math
 import xml.etree.ElementTree as ET
 import pytz
 from turbo_flask import Turbo
-
+import multiprocessing
 
 app = Flask(__name__)
 turbo = Turbo(app)
@@ -113,12 +113,12 @@ def tides():
 
     bbox = {
             "lat": [
-                40.665035,
-                41.224138,
+                40.4915,
+                41.2743
                 ],
             "lon": [
-                -71.727081,
-                -72.736450,
+                -71.4179,
+                -73.9572,
                 ]
             }
 
@@ -134,12 +134,13 @@ def tides():
             station_type="tidepredictions"
             )
 
-    param_current = request.args.get('current', 'ACT2781')
-    param_tide = request.args.get('tide', '8512053')
+    param_current = request.args.get('current', 'ACT2401')
+    param_tide = request.args.get('tide', '8510560')
 
     current_station = [x for x in local_current_stations if x['id'] == param_current][0]
     tide_station = [x for x in local_tide_stations if x['id'] == param_tide][0]
 
+    app.logger.info("getting station metadata")
     station_metadata = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station['id']}.json",
             ).json()
@@ -147,6 +148,7 @@ def tides():
     lat = station_metadata['stations'][0]['lat']
     lon = station_metadata['stations'][0]['lng']
 
+    app.logger.info("getting marine forecast")
     forecast_daily = requests.get(
             f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
             expire_after=seconds_until_hour(),
@@ -166,6 +168,7 @@ def tides():
 
     MTK = "8510560"
 
+    app.logger.info("getting water temp")
     water_temperature = requests.get(
             f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={MTK}&time_zone=lst_ldt&units=english&interval=6&format=json",
             expire_after=seconds_until_hour(),
@@ -173,6 +176,7 @@ def tides():
 
     water_temp = water_temperature.json()['data'][-1]
 
+    app.logger.info("getting tides")
     tides = requests.get(
             f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
@@ -190,6 +194,7 @@ def tides():
 
     tide_max = dt['Feet'].max()  # used in chart for max moon %
 
+    app.logger.info("getting currents")
     currents = requests.get(
             f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
@@ -231,16 +236,53 @@ def tides():
     )
 
     moon_data = []
+    sun_urls = []
+    moon_urls = []
 
-    for d in pd.date_range(start=start_date, end=end_date):
-        date = d.strftime('%Y-%m-%d')
-        sun = requests.get(
-                f"https://api.sunrise-sunset.org/json?date={date}&lat={lat}&lng={lon}&tzid={tz}",
-                ).json()['results']
+    date_list = [x.strftime("%Y-%m-%d") for x in pd.date_range(start=start_date, end=end_date)]
 
-        moon = requests.get(
-                f"https://aa.usno.navy.mil/api/rstt/oneday?date={date}&coords={lat},{lon}&tz={tz_offset}",
-                ).json()['properties']['data']
+    for d in date_list:
+        sun_urls.append(
+                f"https://api.sunrise-sunset.org/json?date={d}&lat={lat}&lng={lon}&tzid={tz}")
+        moon_urls.append(
+                f"https://aa.usno.navy.mil/api/rstt/oneday?date={d}&coords={lat},{lon}&tz={tz_offset}")
+
+
+    sun_resps = []
+    sun_results = []
+    moon_resps = []
+    moon_results = []
+
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
+    app.logger.info("getting sun data")
+
+    for u in sun_urls:
+        result = pool.apply_async(requests.get, (u,))
+        sun_resps.append(result)
+
+    sun_results = [result.get().json()['results'] for result in sun_resps]
+
+    for idx,date in enumerate(date_list):
+        sun = sun_results[idx]
+        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['nautical_twilight_begin']}"),
+                            color="blue", shift=-20)
+        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunrise']}"))
+        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunset']}"), shift=-20)
+        fig = add_sun_annot(fig,
+                            pd.to_datetime(f"{date} {sun['nautical_twilight_end']}"),
+                            color="blue", shift=20)
+
+    app.logger.info("getting moon data")
+
+    for u in moon_urls:
+        result = pool.apply_async(requests.get, (u,))
+        moon_resps.append(result)
+
+    moon_results = [result.get().json()['properties']['data'] for result in moon_resps]
+
+    for idx,date in enumerate(date_list):
+        moon = moon_results[idx]
 
         moon_fracillum_float = float(moon['fracillum'].removesuffix('%')) / 100
 
@@ -260,15 +302,6 @@ def tides():
                  'text': "",
                  })
 
-        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['nautical_twilight_begin']}"),
-                            color="blue", shift=-20)
-        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunrise']}"))
-        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunset']}"), shift=-20)
-        fig = add_sun_annot(fig,
-                            pd.to_datetime(f"{date} {sun['nautical_twilight_end']}"),
-                            color="blue", shift=20)
-
-
     moon_data = sorted(moon_data, key=lambda d: d['time'])
     dm = pd.DataFrame(moon_data)
 
@@ -286,6 +319,7 @@ def tides():
         )
     )
 
+    app.logger.info("getting marine wind hourly")
     forecast_marine = requests.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
             expire_after=seconds_until_hour(),
@@ -340,25 +374,6 @@ def tides():
             showlegend=False,
             height=500,
             margin=dict(l=10, r=10, t=40, b=40),
-            # updatemenus=[
-            #     dict(
-            #         type="buttons",
-            #         buttons=[
-            #             dict(label="4h",
-            #                  method="relayout",
-            #                  args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=2)]]
-            #                  ),
-            #             dict(label="12h",
-            #                  method="relayout",
-            #                  args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=10)]]
-            #                  ),
-            #             dict(label="24h",
-            #                  method="relayout",
-            #                  args=["xaxis.range", [local_now - timedelta(hours=2), local_now + timedelta(hours=22)]]
-            #                  ),
-            #             ],
-            #         )
-            #     ],
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')

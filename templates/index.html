@@ -11,7 +11,7 @@
 
 <style>
 
-table {
+body {
     font-family: monospace;
 }
 
@@ -22,7 +22,7 @@ td {
 form,
 form select,
 form input {
-    font-size: 16px;
+    font-size: 15px;
 }
 
 form.flex {
@@ -74,6 +74,8 @@ select {
 {{ fig_html | safe }}
 
 <h3>WX</h3>
+
+<p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}">Marine Forecast</a></p>
 
 <table>
     {% for f in forecast %}

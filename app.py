@@ -99,7 +99,7 @@ def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
 
 @app.route('/')
 def tides():
-    DAYS = 5
+    DAYS = 3
 
     tz = 'US/Eastern'
     local_now = datetime.now(pytz.timezone(tz))

@@ -63,7 +63,7 @@ def until_next_event(row, df):
         current = f"{row['Knots']} kt at {row['Time']}"
         event = "Waning"
     try:
-        next_event = pd.to_datetime(df.iloc[row.name + 1]['Date'])
+        next_event = df.iloc[row.name + 1]['Date']
         time_until = (next_event - pd.to_datetime(row['Date']))
         until_string = f"{time_until.seconds // 3600}h {(time_until.seconds//60)%60}m"
         until = f"{event} for {until_string} until {next_event.strftime('%H:%m')}"
@@ -188,7 +188,13 @@ def tides():
         'type': "Type"
         })
 
-    dt['Date'] = pd.to_datetime(dt['Date'])
+    tide_offset = int(request.args.get('offset', 0))
+
+    if tide_offset != 0:
+        dt['Date'] = pd.to_datetime(dt['Date']) + timedelta(minutes=tide_offset)
+    else:
+        dt['Date'] = pd.to_datetime(dt['Date'])
+
     dt['Feet'] = dt['Feet'].astype("float")
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
 
@@ -386,6 +392,7 @@ def tides():
                            local_tide_stations=local_tide_stations,
                            forecast=forecast,
                            water_temp=water_temp,
+                           tide_offset=tide_offset,
                            )
 
 if __name__ == '__main__':

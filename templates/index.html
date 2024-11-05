@@ -33,18 +33,29 @@ form input {
 <body>
 
 <form action="/">
-  <label for="current">C:</label>
-  <select name="current" id="current">
-      {% for s in local_current_stations | selectattr("currbin", "equalto", 1) | sort(attribute='name') %}
-      <option value="{{s.id}}" {{'selected' if current_station['id'] == s['id']}} >{{ s.name }}</option>
-      {% endfor %}
-  </select>
-  <label for="tide">T:</label>
+  <label for="tide">Tide station:</label>
+  <br>
   <select name="tide" id="tide">
       {% for s in local_tide_stations | sort(attribute='name') %}
       <option value="{{s.id}}" {{'selected' if tide_station['id'] == s['id']}} >{{ s.name }}</option>
       {% endfor %}
   </select>
+  <br>
+  <br>
+  <label for="current">Current station:</label>
+  <br>
+  <select name="current" id="current">
+      {% for s in local_current_stations | selectattr("currbin", "equalto", 1) | sort(attribute='name') %}
+      <option value="{{s.id}}" {{'selected' if current_station['id'] == s['id']}} >{{ s.name }}</option>
+      {% endfor %}
+  </select>
+  <br>
+  <br>
+  <label for="offset">Tide offset (+/- minutes):</label>
+  <br>
+  <input type="number" name="offset" id="offset" value="{{ tide_offset }}" />
+  <br>
+  <br>
   <input type="submit" value="Submit">
 </form>
 
@@ -82,20 +93,20 @@ form input {
 
 <table>
     <tr>
-        <td>Current:</td>
-        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ current_station['id'] }}"</a>{{ current_station['name'] }}</td>
-    </tr>
-    <tr>
-        <td></td>
-        <td>{{ current_station['lat'] }}, {{ current_station['lng'] }}</td>
-    </tr>
-    <tr>
         <td>Tide:</td>
         <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ tide_station['id'] }}"</a>{{ tide_station['name'] }}</td>
     </tr>
     <tr>
         <td></td>
         <td>{{ tide_station['lat'] }}, {{ tide_station['lng'] }}</td>
+    </tr>
+    <tr>
+        <td>Current:</td>
+        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ current_station['id'] }}"</a>{{ current_station['name'] }}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>{{ current_station['lat'] }}, {{ current_station['lng'] }}</td>
     </tr>
 </table>
 

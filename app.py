@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, abort, render_template
+from flask import Flask, request, redirect, abort, render_template, make_response
 from urllib.parse import urlparse
 import logging
 import re
@@ -134,11 +134,21 @@ def tides():
             station_type="tidepredictions"
             )
 
-    param_current = request.args.get('current', 'ACT2401')
-    param_tide = request.args.get('tide', '8510560')
+    station_defaults = {
+            'tide': '8510560',
+            'current': 'ACT2401',
+            }
 
-    current_station = [x for x in local_current_stations if x['id'] == param_current][0]
-    tide_station = [x for x in local_tide_stations if x['id'] == param_tide][0]
+    current_cookie = request.cookies.get('current', station_defaults['current'])
+    tide_cookie = request.cookies.get('tide', station_defaults['tide'])
+    offset_cookie = int(request.cookies.get('offset', 0))
+
+    current_param = request.args.get('current', current_cookie )
+    tide_param = request.args.get('tide', tide_cookie)
+    tide_offset = int(request.args.get('offset', offset_cookie))
+
+    current_station = [x for x in local_current_stations if x['id'] == current_param][0]
+    tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
 
     app.logger.info("getting station metadata")
     station_metadata = requests.get(
@@ -188,7 +198,6 @@ def tides():
         'type': "Type"
         })
 
-    tide_offset = int(request.args.get('offset', 0))
 
     if tide_offset != 0:
         dt['Date'] = pd.to_datetime(dt['Date']) + timedelta(minutes=tide_offset)
@@ -385,7 +394,8 @@ def tides():
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
-    return render_template('index.html', fig_html=fig_html,
+
+    resp = make_response(render_template('index.html', fig_html=fig_html,
                            current_station=current_station,
                            tide_station=tide_station,
                            local_current_stations=local_current_stations,
@@ -393,7 +403,20 @@ def tides():
                            forecast=forecast,
                            water_temp=water_temp,
                            tide_offset=tide_offset,
-                           )
+                           ))
+
+    if current_param != station_defaults['current']:
+        resp.set_cookie('current', current_param, max_age=157784760)
+
+    if tide_param != station_defaults['tide']:
+        resp.set_cookie('tide', tide_param, max_age=157784760)
+
+    if tide_offset != 0:
+        resp.set_cookie('offset', str(tide_offset), max_age=157784760)
+
+    return resp
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

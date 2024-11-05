@@ -413,6 +413,8 @@ def tides():
 
     if tide_offset != 0:
         resp.set_cookie('offset', str(tide_offset), max_age=157784760)
+    else:
+        resp.delete_cookie('offset')
 
     return resp
 

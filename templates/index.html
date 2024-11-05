@@ -25,16 +25,19 @@ form input {
     font-size: 16px;
 }
 
-            form.flex {
-                display: flex;
-                flex-wrap: wrap;
-            }
+form.flex {
+    display: flex;
+    flex-wrap: wrap;
+}
 
-            form .row {
-                padding-left: 10px;
-                padding-bottom: 5px;
-            }
+form .row {
+    padding-left: 10px;
+    padding-bottom: 5px;
+}
 
+select {
+    max-width: 95%;
+}
 </style>
 
 <title>Tides</title>
@@ -60,7 +63,7 @@ form input {
       </select>
     </div>
     <div class="row">
-      <label for="offset">Tide offset (+/- minutes):</label>
+      <label for="offset">Tide offset (+/- min):</label>
       <input type="number" name="offset" id="offset" value="{{ tide_offset }}" />
     </div>
     <div class="row">

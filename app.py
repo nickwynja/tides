@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, abort, render_template, make_response
+from flask import Flask, request, redirect, abort, render_template, make_response, url_for
 from urllib.parse import urlparse
 import logging
 import re
@@ -97,8 +97,30 @@ def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
     return station_list
 
 
-@app.route('/')
+@app.route('/', methods=["GET", "POST"])
 def tides():
+
+    station_defaults = {
+            'tide': '8510560',
+            'current': 'ACT2401',
+            'met': "8510560",
+            }
+
+
+    if request.method == "POST":
+        current_param = request.form.get('current')
+        tide_param = request.form.get('tide')
+        met_param = request.form.get('met')
+        offset_param = request.form.get('offset')
+
+        return redirect(url_for('tides',
+                                current=current_param if current_param != station_defaults['current'] else None,
+                                tide=tide_param if tide_param != station_defaults['tide'] else None,
+                                met=met_param if met_param != station_defaults['met'] else None,
+                                offset=offset_param if offset_param != "" else None,
+                                )
+                        )
+
     DAYS = 3
 
     tz = 'US/Eastern'
@@ -134,21 +156,34 @@ def tides():
             station_type="tidepredictions"
             )
 
-    station_defaults = {
-            'tide': '8510560',
-            'current': 'ACT2401',
-            }
+    local_met_stations = get_stations_from_bbox(
+            lat_coords=bbox['lat'],
+            lon_coords=bbox['lon'],
+            station_type="met"
+            )
 
     current_cookie = request.cookies.get('current', station_defaults['current'])
     tide_cookie = request.cookies.get('tide', station_defaults['tide'])
-    offset_cookie = int(request.cookies.get('offset', 0))
+
+    station_offsets = json.loads(request.cookies.get('station_offsets', '{}'))
 
     current_param = request.args.get('current', current_cookie )
     tide_param = request.args.get('tide', tide_cookie)
-    tide_offset = int(request.args.get('offset', offset_cookie))
+    met_param = request.args.get('met', station_defaults['met'])
+
+    offset_param = (request.args.get('offset')
+                    if request.args.get('offset') != None else
+                    station_offsets.get(tide_param, 0)
+                    )
+
+    tide_offset = int(offset_param) if offset_param is not None else 0
+
+    if tide_param != 0:
+        station_offsets[tide_param] = tide_offset
 
     current_station = [x for x in local_current_stations if x['id'] == current_param][0]
     tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
+    met_station = [x for x in local_met_stations if x['id'] == met_param][0]
 
     app.logger.info("getting station metadata")
     station_metadata = requests.get(
@@ -176,15 +211,12 @@ def tides():
                 "text": text,
                 })
 
-    MTK = "8510560"
 
-    app.logger.info("getting water temp")
-    water_temperature = requests.get(
-            f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={MTK}&time_zone=lst_ldt&units=english&interval=6&format=json",
+    app.logger.info("getting met data")
+    water_temp = requests.get(
+            f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=6&format=json",
             expire_after=seconds_until_hour(),
-            )
-
-    water_temp = water_temperature.json()['data'][-1]
+            ).json()['data'][-1]
 
     app.logger.info("getting tides")
     tides = requests.get(
@@ -398,8 +430,10 @@ def tides():
     resp = make_response(render_template('index.html', fig_html=fig_html,
                            current_station=current_station,
                            tide_station=tide_station,
+                           met_station=met_station,
                            local_current_stations=local_current_stations,
                            local_tide_stations=local_tide_stations,
+                           local_met_stations=local_met_stations,
                            forecast=forecast,
                            water_temp=water_temp,
                            tide_offset=tide_offset,
@@ -411,10 +445,13 @@ def tides():
     if tide_param != station_defaults['tide']:
         resp.set_cookie('tide', tide_param, max_age=157784760)
 
-    if tide_offset != 0:
-        resp.set_cookie('offset', str(tide_offset), max_age=157784760)
-    else:
-        resp.delete_cookie('offset')
+    # if tide_offset != 0:
+    resp.set_cookie('station_offsets',
+                        json.dumps(station_offsets,
+                                   separators=(',', ':')),
+                    max_age=157784760)
+    # else:
+    #     resp.delete_cookie('offset')
 
     return resp
 

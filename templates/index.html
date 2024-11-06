@@ -45,7 +45,7 @@ select {
 
 <body>
 
-<form action="/" class="flex">
+<form action="/" method="POST" class="flex">
     <div class="row">
         <label for="tide">Tide station:</label>
         <select name="tide" id="tide">
@@ -63,8 +63,19 @@ select {
       </select>
     </div>
     <div class="row">
-      <label for="offset">Tide offset (+/- min):</label>
-      <input type="number" name="offset" id="offset" value="{{ tide_offset }}" />
+      <label for="met">Met observations:</label>
+      <select name="met" id="met">
+          {% for s in local_met_stations | sort(attribute='name') %}
+          <option value="{{s.id}}" {{'selected' if met_station['id'] == s['id']}} >{{ s.name }}</option>
+          {% endfor %}
+      </select>
+    </div>
+    <div class="row">
+      <label for="offset">Tide offset:</label>
+      <input type="number" name="offset" width="3" id="offset"/>
+      {% if tide_offset != 0 %}
+      <span>{{ "+" if tide_offset > 0 else ""}}{{ tide_offset }}min</span>
+      {% endif %}
     </div>
     <div class="row">
       <input type="submit" value="Submit">
@@ -91,7 +102,7 @@ select {
 <table>
     <tr>
         <td>Station:</td>
-        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id=8510560">MTK (8510560)</a></td>
+        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ met_station['id'] }}">{{ met_station['name'] }}</a></td>
     </tr>
     <tr>
         <td>Water temp:</td>
@@ -112,6 +123,10 @@ select {
     </tr>
     <tr>
         <td></td>
+        <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ tide_station['lat'] }}&lng={{ tide_station['lng'] }}&zoom=11&type=tidepredictions&id={{ tide_station['id'] }}">View on map</td>
+    </tr>
+    <tr>
+        <td></td>
         <td>{{ tide_station['lat'] }}, {{ tide_station['lng'] }}</td>
     </tr>
     <tr>
@@ -121,6 +136,10 @@ select {
     <tr>
         <td></td>
         <td>{{ current_station['lat'] }}, {{ current_station['lng'] }}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ current_station['lat'] }}&lng={{ current_station['lng'] }}&zoom=11&type=currentpredictions&id={{ current_station['id'] }}">View on map</td>
     </tr>
 </table>
 

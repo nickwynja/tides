@@ -96,6 +96,13 @@ def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
 
     return station_list
 
+def calc_tide_offset(row, offset):
+    d = pd.to_datetime(row['Date'])
+    if row['Type'] == "H":
+        return d + timedelta(minutes=offset)
+    else:
+        return d - timedelta(minutes=offset)
+
 
 @app.route('/', methods=["GET", "POST"])
 def tides():
@@ -232,7 +239,7 @@ def tides():
 
 
     if tide_offset != 0:
-        dt['Date'] = pd.to_datetime(dt['Date']) + timedelta(minutes=tide_offset)
+        dt['Date'] = dt.apply(calc_tide_offset, axis=1, offset=tide_offset)
     else:
         dt['Date'] = pd.to_datetime(dt['Date'])
 

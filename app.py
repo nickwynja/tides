@@ -383,16 +383,14 @@ def tides():
     root = tree.getroot()
     times = root.findall('.//start-valid-time')
     wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
-    wind_gusts = root.findall('.//wind-speed[@type="gust"]/value')
     wind_dir = root.findall('.//direction[@type="wind"]/value')
     waves = root.findall('.//waves[@type="significant"]/value')
 
-    for idx,t in enumerate(times[:24]):
+    for idx,t in enumerate(times):
         if (idx + 1) % 2 == 0:  # skip every other hour
             pass
         else:
             time = t.text
-            # gusts = f"<br>{wind_gusts[idx].text}kt gusts" if wind_gusts[idx].text else ""
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
             fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
 

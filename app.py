@@ -109,6 +109,8 @@ def calc_tide_offset(row, offset):
 @app.route('/', methods=["GET", "POST"])
 def tides():
 
+    app.logger.info("load initiated")
+
     station_defaults = {
             'tide': '8510560',
             'current': 'ACT2401',
@@ -198,7 +200,11 @@ def tides():
     app.logger.info("getting station metadata")
     station_metadata = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station['id']}.json",
-            ).json()
+            )
+
+    app.logger.info(f"  cached: {station_metadata.from_cache}")
+
+    station_metadata = station_metadata.json()
 
     lat = station_metadata['stations'][0]['lat']
     lon = station_metadata['stations'][0]['lng']
@@ -209,6 +215,7 @@ def tides():
             expire_after=seconds_until_hour(),
             )
 
+    app.logger.info(f"  cached: {forecast_daily.from_cache}")
 
     forecast_periods = forecast_daily.json()['time']['startPeriodName']
     forecast_text = forecast_daily.json()['data']['text']
@@ -226,7 +233,11 @@ def tides():
     water_temp = requests.get(
             f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=6&format=json",
             expire_after=seconds_until_hour(),
-            ).json()['data'][-1]
+            )
+
+    app.logger.info(f"  cached: {water_temp.from_cache}")
+
+    water_temp = water_temp.json()['data'][-1]
 
     app.logger.info("getting tides")
     tides = requests.get(
@@ -255,6 +266,8 @@ def tides():
     currents = requests.get(
             f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
+
+    app.logger.info(f"  cached: {currents.from_cache}")
 
     dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])
     dc = dc.rename(columns={
@@ -297,6 +310,8 @@ def tides():
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
             expire_after=seconds_until_hour(),
             )
+
+    app.logger.info(f"  cached: {forecast_marine.from_cache}")
 
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
     root = tree.getroot()

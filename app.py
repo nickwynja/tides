@@ -294,6 +294,28 @@ def tides():
         )
     )
 
+    app.logger.info("getting marine wind hourly")
+    forecast_marine = requests.get(
+            f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
+            expire_after=seconds_until_hour(),
+            )
+
+    tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
+    root = tree.getroot()
+    times = root.findall('.//start-valid-time')
+    wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
+    wind_dir = root.findall('.//direction[@type="wind"]/value')
+    waves = root.findall('.//waves[@type="significant"]/value')
+
+    for idx,t in enumerate(times):
+        if (idx + 1) % 2 == 0:  # skip every other hour
+            pass
+        else:
+            time = t.text
+            cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
+            fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
+
+
     app.logger.info("calc sun/moon data")
 
     moon_data = []
@@ -327,21 +349,22 @@ def tides():
         moon_rise = mr.astimezone(eastern)[0]
         moon_transit = mtr.astimezone(eastern)[0]
         moon_none = moon_transit + timedelta(hours=12)
-        phase = almanac.moon_phase(eph, t0)
-        deg = phase.degrees
+        # @TODO: cache phases
+        moon_phase = almanac.moon_phase(eph, t0)
+        deg = moon_phase.degrees
         illum = deg / 180
 
         if illum > 1:
             illum = illum - 1
 
         if int(deg) in range(0, 90):
-            print('new moon')
+            phase = 'New Moon'
         elif int(deg) in range(90, 180):
-            print('first quarter')
+            phase = 'First Quarter'
         elif int(deg) in range(180, 270):
-            print('full moon')
+            phase = 'Full Moon'
         elif int(deg) in range(270, 360):
-            print('last quarter')
+            phase = 'Last Quarter'
         else:
             pass
 
@@ -370,16 +393,18 @@ def tides():
             moon_data.append({
                 'time': moon_rise,
                 'phen': 'rise',
-                  'fracillum': illum,
-                  'value': 0,
+                'fracillum': illum,
+                'value': 0,
+                'text': f"Moon rise at {moon_rise.strftime('%H:%m')}",
                   })
 
         if moon_transit:
             moon_data.append({
                 'time': moon_transit,
-                'phen': 'set',
+                'phen': 'upper transit',
                 'fracillum': illum,
                 'value': tide_max * illum,
+                'text': f"Moon upper transit at {moon_rise.strftime('%H:%m')}<br>{phase}<br>{int(illum * 100)}% Illumination<br>",
                   })
         if moon_set:
             moon_data.append({
@@ -387,6 +412,7 @@ def tides():
                 'phen': 'set',
                 'fracillum': illum,
                 'value': 0,
+                'text': f"Moon set at {moon_rise.strftime('%H:%m')}",
                   })
 
         if moon_none:
@@ -395,25 +421,8 @@ def tides():
                 'phen': 'set',
                 'fracillum': illum,
                 'value': None,
+                'text' : ""
                   })
-
-        # moon_fracillum_float = float(moon['fracillum'].removesuffix('%')) / 100
-
-        # for idx,m in enumerate(moon['moondata']):
-        #     time = pd.to_datetime(f"{date} {m['time']}")
-        #     moon_data.append({'time': time,
-        #      'phen': m['phen'],
-        #      'fracillum': moon_fracillum_float,
-        #      'value': tide_max * moon_fracillum_float if m['phen'] == "Upper Transit" else 0,
-        #                       'text': f"Moon {m['phen'].lower()} at {time.strftime('%H:%m')}<br>{moon['closestphase']['phase']}<br>{moon['fracillum']} Illumination<br>",
-        #      })
-
-        #     if m['phen'] == "Upper Transit":  #add opposite in 12 hours to smooth chart
-        #         moon_data.append({'time': pd.to_datetime(f"{date} {m['time']}") + timedelta(hours=12),
-        #          'phen': "opposite",
-        #          'value': None,
-        #          'text': "",
-        #          })
 
     moon_data = sorted(moon_data, key=lambda d: d['time'])
     dm = pd.DataFrame(moon_data)
@@ -421,9 +430,9 @@ def tides():
     fig.add_trace(
         go.Scatter(
           x=dm['time'], y=dm['value'],
-          # text=dm['text'],
-          # texttemplate=dm['text'],
-          # hovertemplate = "%{text}",
+          text=dm['text'],
+          texttemplate=dm['text'],
+          hovertemplate = "%{text}",
           mode='lines+markers',
           textposition='top center', # Adjust text position
           line_shape="spline",
@@ -431,27 +440,6 @@ def tides():
           name='Moon'
         )
     )
-
-    app.logger.info("getting marine wind hourly")
-    forecast_marine = requests.get(
-            f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
-            expire_after=seconds_until_hour(),
-            )
-
-    tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
-    root = tree.getroot()
-    times = root.findall('.//start-valid-time')
-    wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
-    wind_dir = root.findall('.//direction[@type="wind"]/value')
-    waves = root.findall('.//waves[@type="significant"]/value')
-
-    for idx,t in enumerate(times):
-        if (idx + 1) % 2 == 0:  # skip every other hour
-            pass
-        else:
-            time = t.text
-            cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
-            fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
 
     fig.update_traces(textposition=improve_text_position(dc['Time']),
                       connectgaps=None)

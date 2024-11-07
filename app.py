@@ -19,8 +19,6 @@ import multiprocessing
 from skyfield import almanac
 from skyfield.api import load, wgs84
 
-
-
 app = Flask(__name__)
 turbo = Turbo(app)
 
@@ -497,13 +495,10 @@ def tides():
     if tide_param != station_defaults['tide']:
         resp.set_cookie('tide', tide_param, max_age=157784760)
 
-    # if tide_offset != 0:
     resp.set_cookie('station_offsets',
                         json.dumps(station_offsets,
                                    separators=(',', ':')),
                     max_age=157784760)
-    # else:
-    #     resp.delete_cookie('offset')
 
     return resp
 

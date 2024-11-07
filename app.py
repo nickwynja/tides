@@ -355,6 +355,7 @@ def tides():
         if illum > 1:
             illum = illum - 1
 
+        #@TODO: Waning Crescent etc
         if int(deg) in range(0, 90):
             phase = 'New Moon'
         elif int(deg) in range(90, 180):
@@ -402,7 +403,7 @@ def tides():
                 'phen': 'upper transit',
                 'fracillum': illum,
                 'value': tide_max * illum,
-                'text': f"Moon upper transit at {moon_rise.strftime('%H:%m')}<br>{phase}<br>{int(illum * 100)}% Illumination<br>",
+                'text': f"Moon upper transit at {moon_transit.strftime('%H:%m')}<br>{phase}<br>{int(illum * 100)}% Illumination<br>",
                   })
         if moon_set:
             moon_data.append({
@@ -410,7 +411,7 @@ def tides():
                 'phen': 'set',
                 'fracillum': illum,
                 'value': 0,
-                'text': f"Moon set at {moon_rise.strftime('%H:%m')}",
+                'text': f"Moon set at {moon_set.strftime('%H:%m')}",
                   })
 
         if moon_none:

@@ -377,11 +377,11 @@ def tides():
         times, events = almanac.find_discrete(t0, t1, f)
         for t, e in zip(times, events):
             t = t.astimezone(eastern)
-            if almanac.TWILIGHTS[e] == "Nautical twilight":
-                if  t > sun_set:
-                    nautical_dusk = t
-                else:
+            #show twilight start not end
+            if almanac.TWILIGHTS[e] == "Nautical twilight" and t < sun_set:
                     nautical_dawn = t
+            if almanac.TWILIGHTS[e] == "Astronomical twilight" and t > sun_set:
+                    nautical_dusk = t
 
         fig = add_sun_annot(fig, nautical_dawn, color="blue", shift=-20)
         fig = add_sun_annot(fig, sun_rise)

@@ -348,7 +348,7 @@ def tides():
         moon_transit = mtr.astimezone(eastern)[0]
         moon_none = moon_transit + timedelta(hours=12)
         # @TODO: cache phases
-        moon_phase = almanac.moon_phase(eph, t0)
+        moon_phase = almanac.moon_phase(eph, mtr[0])
         deg = moon_phase.degrees
         illum = deg / 180
 

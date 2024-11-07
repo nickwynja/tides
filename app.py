@@ -10,12 +10,16 @@ import pandas as pd
 from io import StringIO
 import plotly.express as px
 import plotly.graph_objects as go
-import pprint
+from pprint import pprint as print
 import math
 import xml.etree.ElementTree as ET
 import pytz
 from turbo_flask import Turbo
 import multiprocessing
+from skyfield import almanac
+from skyfield.api import load, wgs84
+
+
 
 app = Flask(__name__)
 turbo = Turbo(app)
@@ -131,6 +135,7 @@ def tides():
     DAYS = 3
 
     tz = 'US/Eastern'
+    eastern = pytz.timezone(tz)
     local_now = datetime.now(pytz.timezone(tz))
     tz_offset = int(local_now.utcoffset().total_seconds()/60/60)
     # start_date = local_now.strftime('%Y%m%d')
@@ -289,72 +294,126 @@ def tides():
         )
     )
 
+    app.logger.info("calc sun/moon data")
+
     moon_data = []
-    sun_urls = []
-    moon_urls = []
 
-    date_list = [x.strftime("%Y-%m-%d") for x in pd.date_range(start=start_date, end=end_date)]
+    ts = load.timescale()
+    t0 = ts.from_datetime(start_date_dt)
+    t1 = ts.from_datetime(end_date_dt)
+    eph = load('de421.bsp')
+    sun = eph['Sun']
+    moon = eph['Moon']
+    topos = wgs84.latlon(lat, lon)
+    observer = eph['Earth'] + topos
 
-    for d in date_list:
-        sun_urls.append(
-                f"https://api.sunrise-sunset.org/json?date={d}&lat={lat}&lng={lon}&tzid={tz}")
-        moon_urls.append(
-                f"https://aa.usno.navy.mil/api/rstt/oneday?date={d}&coords={lat},{lon}&tz={tz_offset}")
-
-
-    sun_resps = []
-    sun_results = []
-    moon_resps = []
-    moon_results = []
-
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
-
-    app.logger.info("getting sun data")
-
-    for u in sun_urls:
-        result = pool.apply_async(requests.get, (u,))
-        sun_resps.append(result)
-
-    sun_results = [result.get().json()['results'] for result in sun_resps]
+    date_list = [x for x in pd.date_range(start=start_date, end=end_date)]
 
     for idx,date in enumerate(date_list):
-        sun = sun_results[idx]
-        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['nautical_twilight_begin']}"),
-                            color="blue", shift=-20)
-        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunrise']}"))
-        fig = add_sun_annot(fig, pd.to_datetime(f"{date} {sun['sunset']}"), shift=-20)
-        fig = add_sun_annot(fig,
-                            pd.to_datetime(f"{date} {sun['nautical_twilight_end']}"),
-                            color="blue", shift=20)
+        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(hours=24)
+        t0 = ts.from_datetime(eastern.localize(day_start))
+        t1 = ts.from_datetime(eastern.localize(day_end))
 
-    app.logger.info("getting moon data")
+        sr,y = almanac.find_risings(observer, sun, t0, t1)
+        ss,y = almanac.find_settings(observer, sun, t0, t1)
+        mr,y = almanac.find_risings(observer, moon, t0, t1)
+        ms,y = almanac.find_settings(observer, moon, t0, t1)
+        mtr = almanac.find_transits(observer, moon, t0, t1)
+        # for t in sets.astimezone(eastern):
 
-    for u in moon_urls:
-        result = pool.apply_async(requests.get, (u,))
-        moon_resps.append(result)
+        sun_rise = sr.astimezone(eastern)[0]
+        sun_set  = ss.astimezone(eastern)[0]
+        moon_rise = mr.astimezone(eastern)[0]
+        moon_transit = mtr.astimezone(eastern)[0]
+        moon_none = moon_transit + timedelta(hours=12)
+        phase = almanac.moon_phase(eph, t0)
+        deg = phase.degrees
+        illum = deg / 180
 
-    moon_results = [result.get().json()['properties']['data'] for result in moon_resps]
+        if illum > 1:
+            illum = illum - 1
 
-    for idx,date in enumerate(date_list):
-        moon = moon_results[idx]
+        if int(deg) in range(0, 90):
+            print('new moon')
+        elif int(deg) in range(90, 180):
+            print('first quarter')
+        elif int(deg) in range(180, 270):
+            print('full moon')
+        elif int(deg) in range(270, 360):
+            print('last quarter')
+        else:
+            pass
 
-        moon_fracillum_float = float(moon['fracillum'].removesuffix('%')) / 100
+        try:
+            moon_set = ms.astimezone(eastern)[0]
+        except IndexError as e:
+            moon_set = None
 
-        for idx,m in enumerate(moon['moondata']):
-            time = pd.to_datetime(f"{date} {m['time']}")
-            moon_data.append({'time': time,
-             'phen': m['phen'],
-             'fracillum': moon_fracillum_float,
-             'value': tide_max * moon_fracillum_float if m['phen'] == "Upper Transit" else 0,
-                              'text': f"Moon {m['phen'].lower()} at {time.strftime('%H:%m')}<br>{moon['closestphase']['phase']}<br>{moon['fracillum']} Illumination<br>",
-             })
+        f = almanac.dark_twilight_day(eph, topos)
+        times, events = almanac.find_discrete(t0, t1, f)
+        for t, e in zip(times, events):
+            t = t.astimezone(eastern)
+            if almanac.TWILIGHTS[e] == "Nautical twilight":
+                if  t > sun_set:
+                    nautical_dusk = t
+                else:
+                    nautical_dawn = t
 
-            if m['phen'] == "Upper Transit":  #add opposite in 12 hours to smooth chart
-                moon_data.append({'time': pd.to_datetime(f"{date} {m['time']}") + timedelta(hours=12),
-                 'phen': "opposite",
-                 'value': None,
-                 'text': "",
-                 })
+        fig = add_sun_annot(fig, nautical_dawn, color="blue", shift=-20)
+        fig = add_sun_annot(fig, sun_rise)
+        fig = add_sun_annot(fig, sun_set, shift=-20)
+        fig = add_sun_annot(fig, nautical_dusk, color="blue", shift=20)
+
+
+        if moon_rise:
+            moon_data.append({
+                'time': moon_rise,
+                'phen': 'rise',
+                  'fracillum': illum,
+                  'value': 0,
+                  })
+
+        if moon_transit:
+            moon_data.append({
+                'time': moon_transit,
+                'phen': 'set',
+                'fracillum': illum,
+                'value': tide_max * illum,
+                  })
+        if moon_set:
+            moon_data.append({
+                'time': moon_set,
+                'phen': 'set',
+                'fracillum': illum,
+                'value': 0,
+                  })
+
+        if moon_none:
+            moon_data.append({
+                'time': moon_none,
+                'phen': 'set',
+                'fracillum': illum,
+                'value': None,
+                  })
+
+        # moon_fracillum_float = float(moon['fracillum'].removesuffix('%')) / 100
+
+        # for idx,m in enumerate(moon['moondata']):
+        #     time = pd.to_datetime(f"{date} {m['time']}")
+        #     moon_data.append({'time': time,
+        #      'phen': m['phen'],
+        #      'fracillum': moon_fracillum_float,
+        #      'value': tide_max * moon_fracillum_float if m['phen'] == "Upper Transit" else 0,
+        #                       'text': f"Moon {m['phen'].lower()} at {time.strftime('%H:%m')}<br>{moon['closestphase']['phase']}<br>{moon['fracillum']} Illumination<br>",
+        #      })
+
+        #     if m['phen'] == "Upper Transit":  #add opposite in 12 hours to smooth chart
+        #         moon_data.append({'time': pd.to_datetime(f"{date} {m['time']}") + timedelta(hours=12),
+        #          'phen': "opposite",
+        #          'value': None,
+        #          'text': "",
+        #          })
 
     moon_data = sorted(moon_data, key=lambda d: d['time'])
     dm = pd.DataFrame(moon_data)
@@ -362,9 +421,9 @@ def tides():
     fig.add_trace(
         go.Scatter(
           x=dm['time'], y=dm['value'],
-          text=dm['text'],
-          texttemplate=dm['text'],
-          hovertemplate = "%{text}",
+          # text=dm['text'],
+          # texttemplate=dm['text'],
+          # hovertemplate = "%{text}",
           mode='lines+markers',
           textposition='top center', # Adjust text position
           line_shape="spline",

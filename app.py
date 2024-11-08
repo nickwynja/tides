@@ -18,7 +18,6 @@ from turbo_flask import Turbo
 import multiprocessing
 from skyfield import almanac
 from skyfield.api import load, wgs84
-from concurrent.futures import ProcessPoolExecutor
 import time
 
 app = Flask(__name__)
@@ -157,16 +156,25 @@ def lunar(date, lat, lon):
     t1 = ts.from_datetime(et.localize(day_end))
 
     mr,y = almanac.find_risings(observer, moon, t0, t1)
-    ms,y = almanac.find_settings(observer, moon, t0, t1)
     mtr = almanac.find_transits(observer, moon, t0, t1)
+    ms,y = almanac.find_settings(observer, moon, t0, t1)
     mp = almanac.moon_phase(eph, mtr[0])
 
     moon_transit = mtr.astimezone(et)[0]
 
+    mr_alt, mr_az, mr_distance = observer.at(mr).observe(moon).apparent().altaz()
+    tr_alt, tr_az, tr_distance = observer.at(mtr).observe(moon).apparent().altaz()
+    ms_alt, ms_az, ms_distance = observer.at(ms).observe(moon).apparent().altaz()
+
+    pos_at_rise = deg_to_compass(mr_az.degrees[0])
+
     try:
         moon_set = ms.astimezone(et)[0]
+        pos_at_set = deg_to_compass(ms_az.degrees[0])
     except IndexError as e:
         moon_set = None
+        pos_at_set = None
+
 
     d = {
         'times': {
@@ -174,6 +182,11 @@ def lunar(date, lat, lon):
             'transit': moon_transit,
             'set': moon_set,
             'none': moon_transit + timedelta(hours=12),
+            },
+        'positions': {
+            'rise': pos_at_rise,
+            'transit': f"{int(tr_alt.degrees)}&deg; {deg_to_compass(tr_az.degrees)}",
+            'set': pos_at_set,
             },
         'deg': mp.degrees,
         'illum': mp.degrees / 180 if mp.degrees / 180 < 1 else (mp.degrees / 180) - 1,
@@ -433,12 +446,14 @@ def tides():
                     value = tide_max * m['illum']
                     text = (f"Moon upper transit at {t.strftime('%H:%m')}<br>"
                             + f"{m['phase']}<br>"
-                            + f"{int(m['illum'] * 100)}% Illumination<br>")
+                            + f"Illumination: {int(m['illum'] * 100)}% <br>"
+                            + f"Elevation: {m['positions'][e]}")
                 elif e == 'none':
                     value = None
                 else:
                     value = 0
-                    text = f"Moon {e} at {t.strftime('%H:%m')}"
+                    text = (f"Moon {e} at {t.strftime('%H:%m')}<br>"
+                            +f"Position: {m['positions'][e]}")
 
                 moon_data.append({
                     'time': t,

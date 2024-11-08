@@ -100,11 +100,7 @@ def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
     return station_list
 
 def calc_tide_offset(row, offset):
-    d = pd.to_datetime(row['Date'])
-    if row['Type'] == "H":
-        return d + timedelta(minutes=offset)
-    else:
-        return d - timedelta(minutes=offset)
+    return pd.to_datetime(row['Date']) + timedelta(minutes=offset)
 
 def deg_to_phase(deg):
     if int(deg) in range(0, 90):
@@ -275,13 +271,13 @@ def tides():
 
     offset_param = (request.args.get('offset')
                     if request.args.get('offset') != None else
-                    station_offsets.get(tide_param, 0)
+                    station_offsets.get(f"{tide_param}_{current_param}", 0)
                     )
 
     tide_offset = int(offset_param) if offset_param is not None else 0
 
     if tide_param != 0:
-        station_offsets[tide_param] = tide_offset
+        station_offsets[f"{tide_param}_{current_param}"] = tide_offset
 
     current_station = [x for x in local_current_stations if x['id'] == current_param][0]
     tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
@@ -453,7 +449,7 @@ def tides():
                 else:
                     value = 0
                     text = (f"Moon {e} at {t.strftime('%H:%m')}<br>"
-                            +f"Position: {m['positions'][e]}")
+                            +f"Direction: {m['positions'][e]}")
 
                 moon_data.append({
                     'time': t,

@@ -116,6 +116,12 @@ select {
 
 <h3>Station Details</h3>
 
+{% set tc = tide_station['lng']|string + "," + tide_station['lat']|string %}
+{% set cc = current_station['lng']|string + "," + current_station['lat']|string %}
+{% set at = "pk.eyJ1Ijoibmlja3d5bmphIiwiYSI6ImNtMzh6ZWN0YzBrbXUybG9nYXhjdnFlc2cifQ.uUURdxJOZ72zXmM9oqvW7g" %}
+
+<img src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/600x400?padding=50&access_token={{at}}" />
+
 <table>
     <tr>
         <td>Tide:</td>

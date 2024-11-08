@@ -225,7 +225,7 @@ def tides():
     local_now = datetime.now(pytz.timezone(tz))
     tz_offset = int(local_now.utcoffset().total_seconds()/60/60)
     # start_date = local_now.strftime('%Y%m%d')
-    start_date_dt = (local_now - timedelta(days = 1))
+    start_date_dt = (local_now - timedelta(days = 1)).replace(microsecond=0, second=0, minute=0)
     end_date_dt = (local_now + timedelta(days = DAYS))
     start_date = start_date_dt.strftime('%Y%m%d')
     end_date = end_date_dt.strftime('%Y%m%d')
@@ -337,6 +337,8 @@ def tides():
         'type': "Type"
         })
 
+    dt['Type'] = dt['Type'].replace(['H'], 'high tide')
+    dt['Type'] = dt['Type'].replace(['L'], 'low tide')
 
     if tide_offset != 0:
         dt['Date'] = dt.apply(calc_tide_offset, axis=1, offset=tide_offset)
@@ -364,6 +366,9 @@ def tides():
     dc['Date'] = pd.to_datetime(dc['Date'])
     dc['Time'] = dc['Date'].dt.strftime("%H:%M")
     dc['Event'] = dc.apply(until_next_event, df=dc, axis=1)
+    dc['Type'] = dc['Type'].replace(['ebb'], 'peak ebb')
+    dc['Type'] = dc['Type'].replace(['flood'], 'peak flood')
+    dc['Type'] = dc['Type'].replace(['slack'], 'slack current')
 
     fig = go.Figure()
     fig.add_trace(
@@ -415,12 +420,10 @@ def tides():
 
     app.logger.info("calc sun/moon data")
 
-    sun = []
-    moon = []
-
     timer_start = time.perf_counter()
 
-
+    sun = []
+    moon = []
     for date in pd.date_range(start=start_date, end=end_date):
         sun.append(solar(date, lat, lon))
         moon.append(lunar(date, lat, lon))
@@ -515,6 +518,40 @@ def tides():
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
 
+
+    dct = dc[dc['Date'].dt.strftime('%Y-%m-%d') == today]
+    dtt = dt[dt['Date'].dt.strftime('%Y-%m-%d') == today]
+    dd = pd.merge(dct, dtt,  how="outer", on=['Date', 'Type'])
+
+    text = [
+            {'time': sun[1]['dawn'],
+             'text': 'dawn',
+             },
+            {'time': sun[1]['rise'],
+             'text': 'sun rise',
+             },
+            {'time': sun[1]['set'],
+             'text': 'sun set',
+             },
+            {'time': sun[1]['dusk'],
+             'text': "dusk",
+             },
+            {'time': moon[1]['times']['rise'],
+             'text': "moon rise",
+             },
+            {'time': moon[1]['times']['set'],
+             'text': 'moon set',
+             },
+            ]
+
+    for idx,d in dd.iterrows():
+        # if d['Type'] in ['high', 'low', 'slack']:
+            text.append({'time': EASTERN.localize(d['Date'].to_pydatetime()),
+                         'text': d['Type']})
+
+
+    text = sorted(text, key=lambda d: d['time'])
+
     resp = make_response(render_template('index.html', fig_html=fig_html,
                            current_station=current_station,
                            tide_station=tide_station,
@@ -525,6 +562,7 @@ def tides():
                            forecast=forecast,
                            water_temp=water_temp,
                            tide_offset=tide_offset,
+                           text_report=text,
                            ))
 
     if current_param != station_defaults['current']:

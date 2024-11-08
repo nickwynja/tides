@@ -38,6 +38,11 @@ form .row {
 select {
     max-width: 95%;
 }
+
+#map {
+    max-width: 100%;
+}
+
 </style>
 
 <title>Tides</title>
@@ -84,6 +89,20 @@ select {
 
 {{ fig_html | safe }}
 
+<details>
+    <summary>Today's text report</summary>
+    <br>
+    <table>
+        {% for t in text_report %}
+        <tr>
+            <td>{{ t.time.strftime('%H:%M')}}</td>
+            <td>{{ t.text}}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</details>
+
+
 <h3>WX</h3>
 
 <p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}">Marine Forecast</a></p>
@@ -120,7 +139,7 @@ select {
 {% set cc = current_station['lng']|string + "," + current_station['lat']|string %}
 {% set at = "pk.eyJ1Ijoibmlja3d5bmphIiwiYSI6ImNtMzh6ZWN0YzBrbXUybG9nYXhjdnFlc2cifQ.uUURdxJOZ72zXmM9oqvW7g" %}
 
-<img src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/600x400?padding=50&access_token={{at}}" />
+<img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/600x400?padding=50&access_token={{at}}" />
 
 <table>
     <tr>

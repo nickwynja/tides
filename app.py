@@ -18,6 +18,8 @@ from turbo_flask import Turbo
 import multiprocessing
 from skyfield import almanac
 from skyfield.api import load, wgs84
+from concurrent.futures import ProcessPoolExecutor
+import time
 
 app = Flask(__name__)
 turbo = Turbo(app)
@@ -105,6 +107,73 @@ def calc_tide_offset(row, offset):
     else:
         return d - timedelta(minutes=offset)
 
+def deg_to_phase(deg):
+    if int(deg) in range(0, 90):
+        phase = 'New Moon'
+    elif int(deg) in range(90, 180):
+        phase = 'First Quarter'
+    elif int(deg) in range(180, 270):
+        phase = 'Full Moon'
+    elif int(deg) in range(270, 360):
+        phase = 'Last Quarter'
+    else:
+        pass
+    return phase
+
+
+def solunar(date, lat, lon):
+    ts = load.timescale()
+    eph = load('de421.bsp')
+    sun = eph['Sun']
+    moon = eph['Moon']
+    topos = wgs84.latlon(lat, lon)
+    observer = eph['Earth'] + topos
+    et = pytz.timezone('US/Eastern')
+    data = {}
+
+    day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(hours=24)
+    t0 = ts.from_datetime(et.localize(day_start))
+    t1 = ts.from_datetime(et.localize(day_end))
+
+    # sr,y = almanac.find_risings(observer, sun, t0, t1)
+    # ss,y = almanac.find_settings(observer, sun, t0, t1)
+    mr,y = almanac.find_risings(observer, moon, t0, t1)
+    ms,y = almanac.find_settings(observer, moon, t0, t1)
+    mtr = almanac.find_transits(observer, moon, t0, t1)
+    mp = almanac.moon_phase(eph, mtr[0])
+
+    # sun_set = ss.astimezone(et)[0]
+    moon_transit = mtr.astimezone(et)[0]
+
+    try:
+        moon_set = ms.astimezone(et)[0]
+    except IndexError as e:
+        moon_set = None
+
+    f = almanac.dark_twilight_day(eph, topos)
+    times, events = almanac.find_discrete(t0, t1, f)
+
+    dawn = times[1].astimezone(et)
+    sun_rise = times[3].astimezone(et)
+    sun_set = times[4].astimezone(et)
+    dusk = times[7].astimezone(et)
+
+    d = {
+        'sun_rise': sun_rise,
+        'sun_set': sun_set,
+        'moon_rise': mr.astimezone(et)[0],
+        'moon_transit': moon_transit,
+        'moon_none': moon_transit + timedelta(hours=12),
+        'moon_deg': mp.degrees,
+        'moon_illum': mp.degrees / 180 if mp.degrees / 180 < 1 else (mp.degrees / 180) - 1,
+        'moon_phase': deg_to_phase(mp.degrees),
+        'moon_set': moon_set,
+        'dawn': dawn,
+        'dusk': dusk,
+        }
+
+    return d
 
 @app.route('/', methods=["GET", "POST"])
 def tides():
@@ -135,7 +204,7 @@ def tides():
     DAYS = 3
 
     tz = 'US/Eastern'
-    eastern = pytz.timezone(tz)
+    EASTERN = pytz.timezone(tz)
     local_now = datetime.now(pytz.timezone(tz))
     tz_offset = int(local_now.utcoffset().total_seconds()/60/60)
     # start_date = local_now.strftime('%Y%m%d')
@@ -324,119 +393,71 @@ def tides():
         if (idx + 1) % 2 == 0:  # skip every other hour
             pass
         else:
-            time = t.text
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
-            fig.add_annotation(x=time, yref="paper", y=1.05, text=cond, showarrow=False)
-
+            fig.add_annotation(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)
 
     app.logger.info("calc sun/moon data")
 
-    #@TODO: multithread
-    # https://stackoverflow.com/questions/69540664/improve-performance-of-sunrise-sunset-calculations-in-skyfield
-
-    moon_data = []
-
-    ts = load.timescale()
-    t0 = ts.from_datetime(start_date_dt)
-    t1 = ts.from_datetime(end_date_dt)
-    eph = load('de421.bsp')
-    sun = eph['Sun']
-    moon = eph['Moon']
-    topos = wgs84.latlon(lat, lon)
-    observer = eph['Earth'] + topos
-
     date_list = [x for x in pd.date_range(start=start_date, end=end_date)]
 
-    for idx,date in enumerate(date_list):
-        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
-        day_end = day_start + timedelta(hours=24)
-        t0 = ts.from_datetime(eastern.localize(day_start))
-        t1 = ts.from_datetime(eastern.localize(day_end))
+    results = []
 
-        sr,y = almanac.find_risings(observer, sun, t0, t1)
-        ss,y = almanac.find_settings(observer, sun, t0, t1)
-        mr,y = almanac.find_risings(observer, moon, t0, t1)
-        ms,y = almanac.find_settings(observer, moon, t0, t1)
-        mtr = almanac.find_transits(observer, moon, t0, t1)
-        # for t in sets.astimezone(eastern):
+    s = time.perf_counter()
 
-        sun_rise = sr.astimezone(eastern)[0]
-        sun_set  = ss.astimezone(eastern)[0]
-        moon_rise = mr.astimezone(eastern)[0]
-        moon_transit = mtr.astimezone(eastern)[0]
-        moon_none = moon_transit + timedelta(hours=12)
-        # @TODO: cache phases
-        moon_phase = almanac.moon_phase(eph, mtr[0])
-        deg = moon_phase.degrees
-        illum = deg / 180
+    with ProcessPoolExecutor() as executor:
+        futures = []
+        for date in date_list:
+          # futures.append(executor.submit(docalc, lat, lon))
+          futures.append(executor.submit(solunar, date, lat, lon))
+        for future in futures:
+            results.append(future.result())
 
-        if illum > 1:
-            illum = illum - 1
+    # for date in date_list:
+    #     results.append(solunar(date, lat, lon))
 
-        #@TODO: Waning Crescent etc
-        if int(deg) in range(0, 90):
-            phase = 'New Moon'
-        elif int(deg) in range(90, 180):
-            phase = 'First Quarter'
-        elif int(deg) in range(180, 270):
-            phase = 'Full Moon'
-        elif int(deg) in range(270, 360):
-            phase = 'Last Quarter'
-        else:
-            pass
+    e = time.perf_counter()
 
-        try:
-            moon_set = ms.astimezone(eastern)[0]
-        except IndexError as e:
-            moon_set = None
+    app.logger.info(e-s)
 
-        f = almanac.dark_twilight_day(eph, topos)
-        times, events = almanac.find_discrete(t0, t1, f)
-        for t, e in zip(times, events):
-            t = t.astimezone(eastern)
-            #show twilight start not end
-            if almanac.TWILIGHTS[e] == "Astronomical twilight" and t < sun_set:
-                    nautical_dawn = t
-            if almanac.TWILIGHTS[e] == "Night" and t > sun_set:
-                    nautical_dusk = t
+    for s in results:
+        fig = add_sun_annot(fig, s['dawn'], color="blue", shift=-20)
+        fig = add_sun_annot(fig, s['sun_rise'])
+        fig = add_sun_annot(fig, s['sun_set'], shift=-20)
+        fig = add_sun_annot(fig, s['dusk'], color="blue", shift=20)
 
-        fig = add_sun_annot(fig, nautical_dawn, color="blue", shift=-20)
-        fig = add_sun_annot(fig, sun_rise)
-        fig = add_sun_annot(fig, sun_set, shift=-20)
-        fig = add_sun_annot(fig, nautical_dusk, color="blue", shift=20)
+        moon_data = []
 
-
-        if moon_rise:
+        if s['moon_rise']:
             moon_data.append({
-                'time': moon_rise,
+                'time': s['moon_rise'],
                 'phen': 'rise',
-                'fracillum': illum,
+                'fracillum': s['moon_illum'],
                 'value': 0,
-                'text': f"Moon rise at {moon_rise.strftime('%H:%m')}",
+                'text': f"Moon rise at {s['moon_rise'].strftime('%H:%m')}",
                   })
 
-        if moon_transit:
+        if s['moon_transit']:
             moon_data.append({
-                'time': moon_transit,
+                'time': s['moon_transit'],
                 'phen': 'upper transit',
-                'fracillum': illum,
-                'value': tide_max * illum,
-                'text': f"Moon upper transit at {moon_transit.strftime('%H:%m')}<br>{phase}<br>{int(illum * 100)}% Illumination<br>",
+                'fracillum': s['moon_illum'],
+                'value': tide_max * s['moon_illum'],
+                'text': f"Moon upper transit at {s['moon_transit'].strftime('%H:%m')}<br>{s['moon_phase']}<br>{int(s['moon_illum'] * 100)}% Illumination<br>",
                   })
-        if moon_set:
+        if s['moon_set']:
             moon_data.append({
-                'time': moon_set,
+                'time': s['moon_set'],
                 'phen': 'set',
-                'fracillum': illum,
+                'fracillum': s['moon_illum'],
                 'value': 0,
-                'text': f"Moon set at {moon_set.strftime('%H:%m')}",
+                'text': f"Moon set at {s['moon_set'].strftime('%H:%m')}",
                   })
 
-        if moon_none:
+        if s['moon_none']:
             moon_data.append({
-                'time': moon_none,
+                'time': s['moon_none'],
                 'phen': 'set',
-                'fracillum': illum,
+                'fracillum': None,
                 'value': None,
                 'text' : ""
                   })

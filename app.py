@@ -404,16 +404,16 @@ def tides():
 
     s = time.perf_counter()
 
-    with ProcessPoolExecutor() as executor:
-        futures = []
-        for date in date_list:
-          # futures.append(executor.submit(docalc, lat, lon))
-          futures.append(executor.submit(solunar, date, lat, lon))
-        for future in futures:
-            results.append(future.result())
+    # with ProcessPoolExecutor() as executor:
+    #     futures = []
+    #     for date in date_list:
+    #       # futures.append(executor.submit(docalc, lat, lon))
+    #       futures.append(executor.submit(solunar, date, lat, lon))
+    #     for future in futures:
+    #         results.append(future.result())
 
-    # for date in date_list:
-    #     results.append(solunar(date, lat, lon))
+    for date in date_list:
+        results.append(solunar(date, lat, lon))
 
     e = time.perf_counter()
 

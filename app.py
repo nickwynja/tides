@@ -331,6 +331,9 @@ def tides():
 
     app.logger.info("calc sun/moon data")
 
+    #@TODO: multithread
+    # https://stackoverflow.com/questions/69540664/improve-performance-of-sunrise-sunset-calculations-in-skyfield
+
     moon_data = []
 
     ts = load.timescale()
@@ -392,9 +395,9 @@ def tides():
         for t, e in zip(times, events):
             t = t.astimezone(eastern)
             #show twilight start not end
-            if almanac.TWILIGHTS[e] == "Nautical twilight" and t < sun_set:
+            if almanac.TWILIGHTS[e] == "Astronomical twilight" and t < sun_set:
                     nautical_dawn = t
-            if almanac.TWILIGHTS[e] == "Astronomical twilight" and t > sun_set:
+            if almanac.TWILIGHTS[e] == "Night" and t > sun_set:
                     nautical_dusk = t
 
         fig = add_sun_annot(fig, nautical_dawn, color="blue", shift=-20)

@@ -121,29 +121,46 @@ def deg_to_phase(deg):
     return phase
 
 
-def solunar(date, lat, lon):
+def solar(date, lat, lon):
     ts = load.timescale()
     eph = load('de421.bsp')
     sun = eph['Sun']
-    moon = eph['Moon']
     topos = wgs84.latlon(lat, lon)
-    observer = eph['Earth'] + topos
     et = pytz.timezone('US/Eastern')
-    data = {}
 
     day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
     day_end = day_start + timedelta(hours=24)
     t0 = ts.from_datetime(et.localize(day_start))
     t1 = ts.from_datetime(et.localize(day_end))
 
-    # sr,y = almanac.find_risings(observer, sun, t0, t1)
-    # ss,y = almanac.find_settings(observer, sun, t0, t1)
+    f = almanac.dark_twilight_day(eph, topos)
+    times, events = almanac.find_discrete(t0, t1, f)
+
+    return {
+        'dawn': times[1].astimezone(et),
+        'rise': times[3].astimezone(et),
+        'set': times[4].astimezone(et),
+        'dusk': times[7].astimezone(et),
+        }
+
+def lunar(date, lat, lon):
+    ts = load.timescale()
+    eph = load('de421.bsp')
+    moon = eph['Moon']
+    topos = wgs84.latlon(lat, lon)
+    observer = eph['Earth'] + topos
+    et = pytz.timezone('US/Eastern')
+
+    day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(hours=24)
+    t0 = ts.from_datetime(et.localize(day_start))
+    t1 = ts.from_datetime(et.localize(day_end))
+
     mr,y = almanac.find_risings(observer, moon, t0, t1)
     ms,y = almanac.find_settings(observer, moon, t0, t1)
     mtr = almanac.find_transits(observer, moon, t0, t1)
     mp = almanac.moon_phase(eph, mtr[0])
 
-    # sun_set = ss.astimezone(et)[0]
     moon_transit = mtr.astimezone(et)[0]
 
     try:
@@ -151,29 +168,20 @@ def solunar(date, lat, lon):
     except IndexError as e:
         moon_set = None
 
-    f = almanac.dark_twilight_day(eph, topos)
-    times, events = almanac.find_discrete(t0, t1, f)
-
-    dawn = times[1].astimezone(et)
-    sun_rise = times[3].astimezone(et)
-    sun_set = times[4].astimezone(et)
-    dusk = times[7].astimezone(et)
-
     d = {
-        'sun_rise': sun_rise,
-        'sun_set': sun_set,
-        'moon_rise': mr.astimezone(et)[0],
-        'moon_transit': moon_transit,
-        'moon_none': moon_transit + timedelta(hours=12),
-        'moon_deg': mp.degrees,
-        'moon_illum': mp.degrees / 180 if mp.degrees / 180 < 1 else (mp.degrees / 180) - 1,
-        'moon_phase': deg_to_phase(mp.degrees),
-        'moon_set': moon_set,
-        'dawn': dawn,
-        'dusk': dusk,
+        'times': {
+            'rise': mr.astimezone(et)[0],
+            'transit': moon_transit,
+            'set': moon_set,
+            'none': moon_transit + timedelta(hours=12),
+            },
+        'deg': mp.degrees,
+        'illum': mp.degrees / 180 if mp.degrees / 180 < 1 else (mp.degrees / 180) - 1,
+        'phase': deg_to_phase(mp.degrees),
         }
 
     return d
+
 
 @app.route('/', methods=["GET", "POST"])
 def tides():
@@ -398,69 +406,48 @@ def tides():
 
     app.logger.info("calc sun/moon data")
 
-    date_list = [x for x in pd.date_range(start=start_date, end=end_date)]
+    sun = []
+    moon = []
 
-    results = []
+    timer_start = time.perf_counter()
 
-    s = time.perf_counter()
 
-    # with ProcessPoolExecutor() as executor:
-    #     futures = []
-    #     for date in date_list:
-    #       # futures.append(executor.submit(docalc, lat, lon))
-    #       futures.append(executor.submit(solunar, date, lat, lon))
-    #     for future in futures:
-    #         results.append(future.result())
+    for date in pd.date_range(start=start_date, end=end_date):
+        sun.append(solar(date, lat, lon))
+        moon.append(lunar(date, lat, lon))
 
-    for date in date_list:
-        results.append(solunar(date, lat, lon))
+    app.logger.info(time.perf_counter()-timer_start)
 
-    e = time.perf_counter()
-
-    app.logger.info(e-s)
-
-    for s in results:
+    for s in sun:
         fig = add_sun_annot(fig, s['dawn'], color="blue", shift=-20)
-        fig = add_sun_annot(fig, s['sun_rise'])
-        fig = add_sun_annot(fig, s['sun_set'], shift=-20)
+        fig = add_sun_annot(fig, s['rise'])
+        fig = add_sun_annot(fig, s['set'], shift=-20)
         fig = add_sun_annot(fig, s['dusk'], color="blue", shift=20)
 
-        moon_data = []
 
-        if s['moon_rise']:
-            moon_data.append({
-                'time': s['moon_rise'],
-                'phen': 'rise',
-                'fracillum': s['moon_illum'],
-                'value': 0,
-                'text': f"Moon rise at {s['moon_rise'].strftime('%H:%m')}",
-                  })
+    moon_data = []
+    for m in moon:
+        for e,t in m['times'].items():
+            if t is not None:
+                if e == 'transit':
+                    value = tide_max * m['illum']
+                    text = (f"Moon upper transit at {t.strftime('%H:%m')}<br>"
+                            + f"{m['phase']}<br>"
+                            + f"{int(m['illum'] * 100)}% Illumination<br>")
+                elif e == 'none':
+                    value = None
+                else:
+                    value = 0
+                    text = f"Moon {e} at {t.strftime('%H:%m')}"
 
-        if s['moon_transit']:
-            moon_data.append({
-                'time': s['moon_transit'],
-                'phen': 'upper transit',
-                'fracillum': s['moon_illum'],
-                'value': tide_max * s['moon_illum'],
-                'text': f"Moon upper transit at {s['moon_transit'].strftime('%H:%m')}<br>{s['moon_phase']}<br>{int(s['moon_illum'] * 100)}% Illumination<br>",
-                  })
-        if s['moon_set']:
-            moon_data.append({
-                'time': s['moon_set'],
-                'phen': 'set',
-                'fracillum': s['moon_illum'],
-                'value': 0,
-                'text': f"Moon set at {s['moon_set'].strftime('%H:%m')}",
-                  })
-
-        if s['moon_none']:
-            moon_data.append({
-                'time': s['moon_none'],
-                'phen': 'set',
-                'fracillum': None,
-                'value': None,
-                'text' : ""
-                  })
+                moon_data.append({
+                    'time': t,
+                    'phen': e,
+                    'fracillum': m['illum'],
+                    'value': 0,
+                    'value': value,
+                    'text': text,
+                      })
 
     moon_data = sorted(moon_data, key=lambda d: d['time'])
     dm = pd.DataFrame(moon_data)

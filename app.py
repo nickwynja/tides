@@ -539,13 +539,14 @@ def tides():
             {'time': moon[1]['times']['rise'],
              'text': "moon rise",
              },
-            {'time': moon[1]['times']['set'],
-             'text': 'moon set',
-             },
             ]
 
+    moon_set = moon[1]['times']['set']
+
+    if moon_set:
+        text.append({'time': moon_set, 'text': 'moon set'})
+
     for idx,d in dd.iterrows():
-        # if d['Type'] in ['high', 'low', 'slack']:
             text.append({'time': EASTERN.localize(d['Date'].to_pydatetime()),
                          'text': d['Type']})
 

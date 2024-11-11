@@ -36,6 +36,11 @@ if not app.debug:
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 
+
+DISABLE_CACHE = True if app.debug and False else False
+
+app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
+
 def add_sun_annot(fig, when, color="orange", shift=20):
   fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
   fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"),
@@ -136,7 +141,7 @@ def deg_to_phase_intermediate(deg):
 def solar(date, lat, lon):
     key = cache_key(f"solar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
-    if cache and not app.debug:
+    if cache and not DISABLE_CACHE:
         app.logger.info("\tsun  data from cache")
         return cache
 
@@ -171,7 +176,7 @@ def lunar(date, lat, lon):
 
     key = cache_key(f"lunar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
-    if cache and not app.debug:
+    if cache and not DISABLE_CACHE:
         app.logger.info("\tmoon data from cache")
         return cache
 
@@ -363,6 +368,8 @@ def tides():
     tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
     met_station = [x for x in local_met_stations if x['id'] == met_param][0]
 
+    app.logger.info(time.perf_counter()-timer_start)
+
     app.logger.info("getting station metadata")
     station_metadata = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station['id']}.json",
@@ -374,6 +381,8 @@ def tides():
 
     lat = station_metadata['stations'][0]['lat']
     lon = station_metadata['stations'][0]['lng']
+
+    app.logger.info(time.perf_counter()-timer_start)
 
     app.logger.info("getting marine forecast")
     forecast_daily = requests.get(
@@ -395,6 +404,8 @@ def tides():
                 })
 
 
+    app.logger.info(time.perf_counter()-timer_start)
+
     app.logger.info("getting met data")
     water_temp = requests.get(
             f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=6&format=json",
@@ -405,6 +416,7 @@ def tides():
 
     water_temp = water_temp.json()['data'][-1]
 
+    app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("getting tides")
     tides = requests.get(
             f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
@@ -432,6 +444,7 @@ def tides():
 
     tide_max = dt['Feet'].max()  # used in chart for max moon %
 
+    app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("getting currents")
     currents = requests.get(
             f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
@@ -478,11 +491,13 @@ def tides():
         )
     )
 
+    app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("getting marine wind hourly")
     forecast_marine = requests.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
             expire_after=seconds_until_hour(),
             )
+
 
     app.logger.info(f"  cached: {forecast_marine.from_cache}")
 
@@ -493,13 +508,14 @@ def tides():
     wind_dir = root.findall('.//direction[@type="wind"]/value')
     waves = root.findall('.//waves[@type="significant"]/value')
 
-    for idx,t in enumerate(times):
+    for idx,t in enumerate(times[:12]): # only 12 hours since this can be slow
         if (idx + 1) % 2 == 0:  # skip every other hour
             pass
         else:
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
             fig.add_annotation(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)
 
+    app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("calc sun/moon data")
 
     sun = []

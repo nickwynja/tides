@@ -204,7 +204,7 @@ def lunar(date, lat, lon):
             'set': pos_at_set,
             },
         'deg': mp.degrees,
-        'illum': mp.degrees / 180 if mp.degrees / 180 < 1 else (mp.degrees / 180) - 1,
+        'illum': mp.degrees / 180 if mp.degrees / 180 < 1 else 180 / mp.degrees,
         'phase': f"{deg_to_phase(mp.degrees)} ({round(mp.degrees)}&deg;)",
         }
 

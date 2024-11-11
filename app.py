@@ -137,7 +137,9 @@ def solar(date, lat, lon):
     key = cache_key(f"solar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
     if cache and not app.debug:
+        app.logger.info("\tsun  data from cache")
         return cache
+
 
     ts = load.timescale()
     eph = load('de421.bsp')
@@ -170,6 +172,7 @@ def lunar(date, lat, lon):
     key = cache_key(f"lunar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
     if cache and not app.debug:
+        app.logger.info("\tmoon data from cache")
         return cache
 
     ts = load.timescale()
@@ -235,7 +238,6 @@ def get_obj_from_cache(key):
             j = json.loads(f.read(), object_hook=date_hook)
             return j
     except FileNotFoundError as e:
-        app.logger.info('cache miss')
         return False
 
 def store_obj_in_cache(key, obj):
@@ -408,6 +410,8 @@ def tides():
             f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
 
+    app.logger.info(f"  cached: {tides.from_cache}")
+
     dt = pd.DataFrame.from_dict(tides.json()['predictions'])
     dt = dt.rename(columns={
         't': 'Date',
@@ -497,8 +501,6 @@ def tides():
             fig.add_annotation(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)
 
     app.logger.info("calc sun/moon data")
-
-    timer_start = time.perf_counter()
 
     sun = []
     moon = []

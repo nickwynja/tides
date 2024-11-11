@@ -258,6 +258,7 @@ def cache_key(s):
 def tides():
 
     app.logger.info("load initiated")
+    timer_start = time.perf_counter()
 
     station_defaults = {
             'tide': '8510560',
@@ -490,7 +491,6 @@ def tides():
         sun.append(solar(date, lat, lon))
         moon.append(lunar(date, lat, lon))
 
-    app.logger.info(time.perf_counter()-timer_start)
 
     for s in sun:
         fig = add_sun_annot(fig, s['dawn'], color="blue", shift=-20)
@@ -638,6 +638,8 @@ def tides():
                         json.dumps(station_offsets,
                                    separators=(',', ':')),
                     max_age=157784760)
+
+    app.logger.info(time.perf_counter()-timer_start)
 
     return resp
 

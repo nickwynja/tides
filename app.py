@@ -205,7 +205,7 @@ def lunar(date, lat, lon):
             },
         'deg': mp.degrees,
         'illum': mp.degrees / 180 if mp.degrees / 180 < 1 else (mp.degrees / 180) - 1,
-        'phase': deg_to_phase(mp.degrees),
+        'phase': f"{deg_to_phase(mp.degrees)} ({round(mp.degrees)}&deg;)",
         }
 
     store_obj_in_cache(key, d)
@@ -429,8 +429,8 @@ def tides():
     dc['Date'] = pd.to_datetime(dc['Date'])
     dc['Time'] = dc['Date'].dt.strftime("%H:%M")
     dc['Event'] = dc.apply(until_next_event, df=dc, axis=1)
-    dc['Type'] = dc['Type'].replace(['ebb'], 'peak ebb')
-    dc['Type'] = dc['Type'].replace(['flood'], 'peak flood')
+    dc['Type'] = dc['Type'].replace(['ebb'], 'max ebb')
+    dc['Type'] = dc['Type'].replace(['flood'], 'max flood')
     dc['Type'] = dc['Type'].replace(['slack'], 'slack current')
 
     fig = go.Figure()
@@ -507,7 +507,7 @@ def tides():
                     value = tide_max * m['illum']
                     text = (f"Moon upper transit at {t.strftime('%H:%m')}<br>"
                             + f"{m['phase']}<br>"
-                            + f"Illumination: {int(m['illum'] * 100)}% <br>"
+                            + f"Illumination: {round(m['illum'] * 100)}% <br>"
                             + f"Elevation: {m['positions'][e]}")
                 elif e == 'none':
                     value = None

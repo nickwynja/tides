@@ -216,7 +216,7 @@ def lunar(date, lat, lon):
 def get_obj_from_cache(key):
     os.makedirs(CACHE_DIR, exist_ok=True)
     try:
-        with open(f"{CACHE_DIR}/{key}") as f:
+        with open(f"{CACHE_DIR}/{key}.json") as f:
             j = json.loads(f.read(), object_hook=date_hook)
             return j
     except FileNotFoundError as e:
@@ -226,8 +226,8 @@ def get_obj_from_cache(key):
 def store_obj_in_cache(key, obj):
     os.makedirs(CACHE_DIR, exist_ok=True)
     try:
-        with open(f"{CACHE_DIR}/{key}", "w") as file:
-            json.dump(obj, file, default=json_serial)
+        with open(f"{CACHE_DIR}/{key}.json", "w") as file:
+            json.dump(obj, file, indent=4, default=json_serial)
     except Exception as e:
         # app.logger.error(e)
         return False

@@ -122,7 +122,7 @@ def deg_to_phase(deg):
 def solar(date, lat, lon):
     key = cache_key(f"solar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
-    if cache:
+    if cache and not app.debug:
         return cache
 
     ts = load.timescale()
@@ -155,7 +155,7 @@ def lunar(date, lat, lon):
 
     key = cache_key(f"lunar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
-    if cache:
+    if cache and not app.debug:
         return cache
 
     ts = load.timescale()

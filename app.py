@@ -19,6 +19,8 @@ import multiprocessing
 from skyfield import almanac
 from skyfield.api import load, wgs84
 import time
+import hashlib
+import os
 
 app = Flask(__name__)
 turbo = Turbo(app)
@@ -27,6 +29,7 @@ turbo = Turbo(app)
 requests_cache.install_cache()
 
 NOAA_TC_API = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
+CACHE_DIR = "cache"
 
 if not app.debug:
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -117,6 +120,11 @@ def deg_to_phase(deg):
 
 
 def solar(date, lat, lon):
+    key = cache_key(f"solar_{date}{lat}{lon}")
+    cache = get_obj_from_cache(key)
+    if cache:
+        return cache
+
     ts = load.timescale()
     eph = load('de421.bsp')
     sun = eph['Sun']
@@ -131,14 +139,25 @@ def solar(date, lat, lon):
     f = almanac.dark_twilight_day(eph, topos)
     times, events = almanac.find_discrete(t0, t1, f)
 
-    return {
-        'dawn': times[1].astimezone(et),
-        'rise': times[3].astimezone(et),
-        'set': times[4].astimezone(et),
-        'dusk': times[7].astimezone(et),
-        }
+    d =  {
+            'dawn': times[1].astimezone(et),
+            'rise': times[3].astimezone(et),
+            'set': times[4].astimezone(et),
+            'dusk': times[7].astimezone(et),
+            }
+
+    store_obj_in_cache(key, d)
+
+    return d
+
 
 def lunar(date, lat, lon):
+
+    key = cache_key(f"lunar_{date}{lat}{lon}")
+    cache = get_obj_from_cache(key)
+    if cache:
+        return cache
+
     ts = load.timescale()
     eph = load('de421.bsp')
     moon = eph['Moon']
@@ -189,7 +208,50 @@ def lunar(date, lat, lon):
         'phase': deg_to_phase(mp.degrees),
         }
 
+    store_obj_in_cache(key, d)
+
     return d
+
+
+def get_obj_from_cache(key):
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    try:
+        with open(f"{CACHE_DIR}/{key}") as f:
+            j = json.loads(f.read(), object_hook=date_hook)
+            return j
+    except FileNotFoundError as e:
+        app.logger.info('cache miss')
+        return False
+
+def store_obj_in_cache(key, obj):
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    try:
+        with open(f"{CACHE_DIR}/{key}", "w") as file:
+            json.dump(obj, file, default=json_serial)
+    except Exception as e:
+        # app.logger.error(e)
+        return False
+
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
+
+
+def date_hook(json_dict):
+    for (key, value) in json_dict.items():
+        try:
+            json_dict[key] = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f%z")
+        except Exception as e:
+            # app.logger.error(e)
+            pass
+    return json_dict
+
+def cache_key(s):
+    return hashlib.md5(s.encode('utf-8')).hexdigest()
 
 
 @app.route('/', methods=["GET", "POST"])

@@ -105,7 +105,7 @@ def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
 def calc_tide_offset(row, offset):
     return pd.to_datetime(row['Date']) + timedelta(minutes=offset)
 
-def deg_to_phase(deg):
+def deg_to_phase_primary(deg):
     if int(deg) in range(0, 90):
         phase = 'New Moon'
     elif int(deg) in range(90, 180):
@@ -116,6 +116,20 @@ def deg_to_phase(deg):
         phase = 'Last Quarter'
     else:
         pass
+    return phase
+
+def deg_to_phase_intermediate(deg):
+    if int(deg) in range(45, 90):
+        phase = 'Waxing Crescent'
+    elif int(deg) in range(135, 180):
+        phase = 'Waxing Gibbous'
+    elif int(deg) in range((360 - 135), (360-90)):
+        phase = 'Waning Gibbous'
+    elif int(deg) in range((360 - 45), 360):
+        phase = 'Waning Crescent'
+    else:
+        phase = ""
+
     return phase
 
 
@@ -203,9 +217,10 @@ def lunar(date, lat, lon):
             'transit': f"{int(tr_alt.degrees)}&deg; {deg_to_compass(tr_az.degrees)}",
             'set': pos_at_set,
             },
-        'deg': mp.degrees,
-        'illum': mp.degrees / 180 if mp.degrees / 180 < 1 else 180 / mp.degrees,
-        'phase': f"{deg_to_phase(mp.degrees)} ({round(mp.degrees)}&deg;)",
+        'degrees': mp.degrees,
+        'illumination': mp.degrees / 180 if mp.degrees / 180 < 1 else 180 / mp.degrees,
+        'phase_primary': deg_to_phase_primary(mp.degrees),
+        'phase_intermediate': deg_to_phase_intermediate(mp.degrees),
         }
 
     store_obj_in_cache(key, d)
@@ -504,10 +519,11 @@ def tides():
         for e,t in m['times'].items():
             if t is not None:
                 if e == 'transit':
-                    value = tide_max * m['illum']
+                    value = tide_max * m['illumination']
                     text = (f"Moon upper transit at {t.strftime('%H:%m')}<br>"
-                            + f"{m['phase']}<br>"
-                            + f"Illumination: {round(m['illum'] * 100)}% <br>"
+                            + f"Phase: {m['phase_primary']}<br>"
+                            + f"{round(m['degrees'])}&deg; {m['phase_intermediate']}<br>"
+                            + f"Illumination: {round(m['illumination'] * 100)}% <br>"
                             + f"Elevation: {m['positions'][e]}")
                 elif e == 'none':
                     value = None
@@ -519,7 +535,7 @@ def tides():
                 moon_data.append({
                     'time': t,
                     'phen': e,
-                    'fracillum': m['illum'],
+                    'fracillum': m['illumination'],
                     'value': 0,
                     'value': value,
                     'text': text,

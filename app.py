@@ -41,13 +41,6 @@ DISABLE_CACHE = True if app.debug and True else False
 
 app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
-def add_sun_annot(fig, when, color="orange", shift=20):
-    fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
-    fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"),
-                     showarrow=False,
-                     xshift=shift)
-    return fig
-
 def sun_vlines(sun):
     vlines = []
     for s in sun:
@@ -572,8 +565,8 @@ def tides():
     waves = root.findall('.//waves[@type="significant"]/value')
     wind_annots = []
 
-    for idx,t in enumerate(times[:12]): # only 12 hours since this can be slow
-        if (idx + 1) % 2 == 0:  # skip every other hour
+    for idx,t in enumerate(times):
+        if (idx + 1) % 2 == 0:  # skip every other hour for display purposes
             pass
         else:
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"

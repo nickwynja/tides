@@ -668,7 +668,8 @@ def tides():
     fig.update_layout(
             showlegend=False,
             height=450,
-            margin=dict(l=0, r=0, t=40, b=40),
+            dragmode='pan',
+            margin=dict(l=0, r=0, t=50, b=50),
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')

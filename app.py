@@ -569,7 +569,7 @@ def tides():
         if (idx + 1) % 2 == 0:  # skip every other hour for display purposes
             pass
         else:
-            cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
+            cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt<br>{waves[idx].text}'"
             wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)]
 
 

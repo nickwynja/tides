@@ -43,7 +43,7 @@ app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
 def add_sun_annot(fig, when, color="orange", shift=20):
   fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
-  fig.add_annotation(x=when.timestamp(), yref="paper", y=0, text=when.strftime("%H:%M"),
+  fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"),
                      showarrow=False,
                      xshift=shift)
   return fig
@@ -532,7 +532,6 @@ def tides():
     # pool = ThreadPool(4)
     # sun = pool.starmap(solar, zip(dates, repeat(lat), repeat(lon)))
     # moon = pool.starmap(lunar, zip(dates, repeat(lat), repeat(lon)))
-
 
     app.logger.info(time.perf_counter()-timer_start)
 

@@ -37,7 +37,7 @@ if not app.debug:
     app.logger.setLevel(gunicorn_logger.level)
 
 
-DISABLE_CACHE = True if app.debug and True else False
+DISABLE_CACHE = True if app.debug and False else False
 
 app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
@@ -565,7 +565,7 @@ def tides():
     waves = root.findall('.//waves[@type="significant"]/value')
     wind_annots = []
 
-    for idx,t in enumerate(times):
+    for idx,t in enumerate(times[:24]):
         if (idx + 1) % 2 == 0:  # skip every other hour for display purposes
             pass
         else:

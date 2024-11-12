@@ -24,7 +24,7 @@ td {
 form,
 form select,
 form input {
-    font-size: 15px;
+    font-size: 16px;
 }
 
 form.flex {
@@ -39,6 +39,10 @@ form .row {
 
 select {
     max-width: 95%;
+}
+
+#offset {
+    width: 4ch;
 }
 
 #map {
@@ -70,7 +74,7 @@ select {
       </select>
     </div>
     <div class="row">
-      <label for="met">Met observations:</label>
+      <label for="met">Met:</label>
       <select name="met" id="met">
           {% for s in local_met_stations | sort(attribute='name') %}
           <option value="{{s.id}}" {{'selected' if met_station['id'] == s['id']}} >{{ s.name }}</option>
@@ -78,8 +82,8 @@ select {
       </select>
     </div>
     <div class="row">
-      <label for="offset">Tide offset:</label>
-      <input type="number" name="offset" width="3" id="offset"/>
+      <label for="offset">+/-</label>
+      <input type="number" name="offset" id="offset"/>
       {% if tide_offset != 0 %}
       <span>{{ "+" if tide_offset > 0 else ""}}{{ tide_offset }}min</span>
       {% endif %}

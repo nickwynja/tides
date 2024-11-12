@@ -669,11 +669,12 @@ def tides():
             showlegend=False,
             height=450,
             dragmode='pan',
-            margin=dict(l=0, r=0, t=50, b=50),
+            margin=dict(l=0, r=0, t=20, b=50),
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')
-    fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+    fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn',
+                           config = {'displayModeBar': False})
 
 
     app.logger.info(time.perf_counter()-timer_start)

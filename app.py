@@ -48,6 +48,68 @@ def add_sun_annot(fig, when, color="orange", shift=20):
                      xshift=shift)
     return fig
 
+def sun_vlines(sun):
+    vlines = []
+    for s in sun:
+        vlines = vlines + [
+            dict(
+                type='line',
+                x0=s['dawn'],
+                x1=s['dawn'],
+                yref="paper",
+                y0=0,
+                y1=1,
+                line=dict(color="blue", width=2, dash="dash"),
+                ),
+            dict(
+                type='line',
+                x0=s['rise'],
+                x1=s['rise'],
+                yref="paper",
+                y0=0,
+                y1=1,
+                line=dict(color="orange", width=2, dash="dash"),
+                ),
+            dict(
+                type='line',
+                x0=s['set'],
+                x1=s['set'],
+                yref="paper",
+                y0=0,
+                y1=1,
+                line=dict(color="orange", width=2, dash="dash"),
+                ),
+            dict(
+                type='line',
+                x0=s['dusk'],
+                x1=s['dusk'],
+                yref="paper",
+                y0=0,
+                y1=1,
+                line=dict(color="blue", width=2, dash="dash"),
+                ),
+            ]
+    return vlines
+
+def sun_annots(sun):
+    annots = []
+    for s in sun:
+        annots = annots + [
+                dict(x=s['dawn'], yref="paper", y=0, text=s['dawn'].strftime("%H:%M"),
+                     showarrow=False,
+                     xshift=-20),
+                dict(x=s['rise'], yref="paper", y=0, text=s['rise'].strftime("%H:%M"),
+                     showarrow=False,
+                     xshift=20),
+                dict(x=s['set'], yref="paper", y=0, text=s['set'].strftime("%H:%M"),
+                     showarrow=False,
+                     xshift=-20),
+                dict(x=s['dusk'], yref="paper", y=0, text=s['dusk'].strftime("%H:%M"),
+                     showarrow=False,
+                     xshift=20),
+                ]
+    return annots
+
 def improve_text_position(x):
     """ it is more efficient if the x values are sorted """
     positions = ['bottom center', 'top center']  # you can add more: left center ...
@@ -530,11 +592,8 @@ def tides():
     app.logger.info('before sun loop')
     app.logger.info(time.perf_counter()-timer_start)
 
-    for s in sun:
-        fig = add_sun_annot(fig, s['dawn'], color="blue", shift=-20)
-        fig = add_sun_annot(fig, s['rise'])
-        fig = add_sun_annot(fig, s['set'], shift=-20)
-        fig = add_sun_annot(fig, s['dusk'], color="blue", shift=20)
+    fig.update_layout(shapes=sun_vlines(sun))
+    fig.update_layout(annotations=sun_annots(sun))
 
     app.logger.info('after sun loop')
     app.logger.info(time.perf_counter()-timer_start)

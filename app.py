@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, abort, render_template, make_response, url_for
+from flask import Flask, request, redirect, abort, render_template, make_response, url_for, jsonify
 from urllib.parse import urlparse
 import logging
 import re
@@ -740,6 +740,20 @@ def tides():
 
     return resp
 
+
+@app.route('/manifest.json')
+def manifest():
+    return jsonify({
+        "short_name": "Forecast",
+        "name": "Tide, Current, and Wind Forecast",
+        "id": "/",
+        "start_url": "/",
+        "background_color": "#3367D6",
+        "display": "standalone",
+        "scope": "/",
+        "theme_color": "#3367D6",
+        "description": "Weather forecast information",
+    })
 
 
 if __name__ == '__main__':

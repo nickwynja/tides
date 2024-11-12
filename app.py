@@ -42,11 +42,11 @@ DISABLE_CACHE = True if app.debug and False else False
 app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
 def add_sun_annot(fig, when, color="orange", shift=20):
-  fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
-  fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"),
+    fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
+    fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"),
                      showarrow=False,
                      xshift=shift)
-  return fig
+    return fig
 
 def improve_text_position(x):
     """ it is more efficient if the x values are sorted """
@@ -526,13 +526,8 @@ def tides():
         sun.append(solar(date, lat, lon))
         moon.append(lunar(date, lat, lon))
 
-    # from multiprocessing.dummy import Pool as ThreadPool
-    # from itertools import repeat
-    # dates = [x for x in pd.date_range(start=start_date, end=end_date)]
-    # pool = ThreadPool(4)
-    # sun = pool.starmap(solar, zip(dates, repeat(lat), repeat(lon)))
-    # moon = pool.starmap(lunar, zip(dates, repeat(lat), repeat(lon)))
 
+    app.logger.info('before sun loop')
     app.logger.info(time.perf_counter()-timer_start)
 
     for s in sun:
@@ -541,6 +536,7 @@ def tides():
         fig = add_sun_annot(fig, s['set'], shift=-20)
         fig = add_sun_annot(fig, s['dusk'], color="blue", shift=20)
 
+    app.logger.info('after sun loop')
     app.logger.info(time.perf_counter()-timer_start)
 
     moon_data = []

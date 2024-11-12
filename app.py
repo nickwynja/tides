@@ -650,6 +650,7 @@ def tides():
             ],
         minallowed=start_date_dt,
         maxallowed=end_date_dt,
+        automargin=False,
         ticks="outside",
         ticklabelmode="period",
         tickcolor= "black",

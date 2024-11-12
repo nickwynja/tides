@@ -42,8 +42,8 @@ DISABLE_CACHE = True if app.debug and False else False
 app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
 def add_sun_annot(fig, when, color="orange", shift=20):
-  fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
-  fig.add_annotation(x=when, yref="paper", y=0, text=when.strftime("%H:%M"),
+  fig.add_vline(x=when.timestamp(), line_width=2, line_dash="dash", line_color=color)
+  fig.add_annotation(x=when.timestamp(), yref="paper", y=0, text=when.strftime("%H:%M"),
                      showarrow=False,
                      xshift=shift)
   return fig
@@ -266,14 +266,15 @@ def json_serial(obj):
 def date_hook(json_dict):
     for (key, value) in json_dict.items():
         try:
-            json_dict[key] = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f%z")
+            json_dict[key] = datetime.fromisoformat(value)
         except Exception as e:
             # app.logger.error(e)
             pass
     return json_dict
 
 def cache_key(s):
-    return hashlib.md5(s.encode('utf-8')).hexdigest()
+    # return hashlib.md5(s.encode('utf-8')).hexdigest()
+    return s
 
 
 @app.route('/', methods=["GET", "POST"])
@@ -518,12 +519,21 @@ def tides():
     app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("calc sun/moon data")
 
-    sun = []
+
     moon = []
+    sun = []
     for date in pd.date_range(start=start_date, end=end_date):
         sun.append(solar(date, lat, lon))
         moon.append(lunar(date, lat, lon))
 
+    # from multiprocessing.dummy import Pool as ThreadPool
+    # from itertools import repeat
+    # dates = [x for x in pd.date_range(start=start_date, end=end_date)]
+    # pool = ThreadPool(4)
+    # sun = pool.starmap(solar, zip(dates, repeat(lat), repeat(lon)))
+    # moon = pool.starmap(lunar, zip(dates, repeat(lat), repeat(lon)))
+
+    app.logger.info(time.perf_counter()-timer_start)
 
     for s in sun:
         fig = add_sun_annot(fig, s['dawn'], color="blue", shift=-20)
@@ -531,6 +541,7 @@ def tides():
         fig = add_sun_annot(fig, s['set'], shift=-20)
         fig = add_sun_annot(fig, s['dusk'], color="blue", shift=20)
 
+    app.logger.info(time.perf_counter()-timer_start)
 
     moon_data = []
     for m in moon:

@@ -42,7 +42,7 @@ DISABLE_CACHE = True if app.debug and False else False
 app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
 def add_sun_annot(fig, when, color="orange", shift=20):
-  fig.add_vline(x=when.timestamp(), line_width=2, line_dash="dash", line_color=color)
+  fig.add_vline(x=when, line_width=2, line_dash="dash", line_color=color)
   fig.add_annotation(x=when.timestamp(), yref="paper", y=0, text=when.strftime("%H:%M"),
                      showarrow=False,
                      xshift=shift)
@@ -533,6 +533,7 @@ def tides():
     # sun = pool.starmap(solar, zip(dates, repeat(lat), repeat(lon)))
     # moon = pool.starmap(lunar, zip(dates, repeat(lat), repeat(lon)))
 
+
     app.logger.info(time.perf_counter()-timer_start)
 
     for s in sun:
@@ -625,6 +626,7 @@ def tides():
     fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
 
+    app.logger.info(time.perf_counter()-timer_start)
 
     dct = dc[dc['Date'].dt.strftime('%Y-%m-%d') == today]
     dtt = dt[dt['Date'].dt.strftime('%Y-%m-%d') == today]
@@ -657,6 +659,7 @@ def tides():
             text.append({'time': EASTERN.localize(d['Date'].to_pydatetime()),
                          'text': d['Type']})
 
+    app.logger.info(time.perf_counter()-timer_start)
 
     text = sorted(text, key=lambda d: d['time'])
 

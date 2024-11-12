@@ -37,7 +37,7 @@ if not app.debug:
     app.logger.setLevel(gunicorn_logger.level)
 
 
-DISABLE_CACHE = True if app.debug and False else False
+DISABLE_CACHE = True if app.debug and True else False
 
 app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
@@ -579,11 +579,9 @@ def tides():
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
             wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)]
 
-    fig.update_layout(annotations=wind_annots)
 
     app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("calc sun/moon data")
-
 
     moon = []
     sun = []
@@ -596,7 +594,7 @@ def tides():
     app.logger.info(time.perf_counter()-timer_start)
 
     fig.update_layout(shapes=sun_vlines(sun))
-    fig.update_layout(annotations=sun_annots(sun))
+    fig.update_layout(annotations=sun_annots(sun) + wind_annots)
 
     app.logger.info('after sun loop')
     app.logger.info(time.perf_counter()-timer_start)

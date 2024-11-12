@@ -570,13 +570,16 @@ def tides():
     wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
     wind_dir = root.findall('.//direction[@type="wind"]/value')
     waves = root.findall('.//waves[@type="significant"]/value')
+    wind_annots = []
 
     for idx,t in enumerate(times[:12]): # only 12 hours since this can be slow
         if (idx + 1) % 2 == 0:  # skip every other hour
             pass
         else:
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt"
-            fig.add_annotation(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)
+            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)]
+
+    fig.update_layout(annotations=wind_annots)
 
     app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("calc sun/moon data")

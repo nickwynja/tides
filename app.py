@@ -132,7 +132,7 @@ def until_next_event(row, df):
         next_event = df.iloc[row.name + 1]['Date']
         time_until = (next_event - pd.to_datetime(row['Date']))
         until_string = f"{time_until.seconds // 3600}h {(time_until.seconds//60)%60}m"
-        until = f"{event} for {until_string} until {next_event.strftime('%H:%m')}"
+        until = f"{event} for {until_string} until {next_event.strftime('%H:%M')}"
         return f"{current}<br>{until}"
     except IndexError as e:
         return None
@@ -277,7 +277,6 @@ def lunar(start_date, end_date, lat, lon):
             'event': 'offset',
             'time': t.astimezone(et) + timedelta(hours=12),
             })
-        # moon_none = moon_transit + timedelta(hours=12)
 
     ms,y = almanac.find_settings(observer, moon, t0, t1)
     ms_alt, ms_az, ms_distance = observer.at(ms).observe(moon).apparent().altaz()
@@ -599,15 +598,12 @@ def tides():
     app.logger.info('after sun annotations')
     app.logger.info(time.perf_counter()-timer_start)
 
-    # print(moon_events)
-
     moon_data = []
-
 
     for m in moon_events:
             if m['event'] == 'transit':
                 value = tide_max * m['illumination']
-                text = (f"Moon upper transit at {m['time'].strftime('%H:%m')}<br>"
+                text = (f"Moon upper transit at {m['time'].strftime('%H:%M')}<br>"
                         + f"Phase: {m['phase_primary']}<br>"
                         + f"{round(m['degrees'])}&deg; {m['phase_intermediate']}<br>"
                         + f"Illumination: {round(m['illumination'] * 100)}% <br>"
@@ -616,7 +612,7 @@ def tides():
                 value = None
             else:
                 value = 0
-                text = (f"Moon {m['event']} at {m['time'].strftime('%H:%m')}<br>"
+                text = (f"Moon {m['event']} at {m['time'].strftime('%H:%M')}<br>"
                         +f"Direction: {m['pos']}")
 
             moon_data.append({
@@ -692,7 +688,8 @@ def tides():
     dtt = dt[dt['Date'].dt.strftime('%Y-%m-%d') == today]
     dd = pd.merge(dct, dtt,  how="outer", on=['Date', 'Type'])
 
-    # print(moon_data)
+    moon_rises = [x for x in moon_data if x['phen'] == "rise"]
+    moon_set = [x for x in moon_data if x['phen'] == "set"]
 
     text = [
         {'time': sun[1]['dawn'],
@@ -707,14 +704,13 @@ def tides():
         {'time': sun[1]['dusk'],
          'text': "dusk",
          },
-        # {'time': moon[1]['times']['rise'],
-        #  'text': "moon rise",
-        #  },
+        {'time': moon_rises[1]['time'],
+         'text': "moon rise",
+         },
+        {'time': moon_set[1]['time'],
+         'text': "moon set",
+         },
         ]
-    # moon_set = moon[1]['times']['set']
-
-    # if moon_set:
-    #     text.append({'time': moon_set, 'text': 'moon set'})
 
     for idx,d in dd.iterrows():
             text.append({'time': EASTERN.localize(d['Date'].to_pydatetime()),

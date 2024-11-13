@@ -37,7 +37,7 @@ if not app.debug:
     app.logger.setLevel(gunicorn_logger.level)
 
 
-DISABLE_CACHE = True if app.debug and False else False
+DISABLE_CACHE = True if app.debug and True else False
 
 app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
 
@@ -261,13 +261,13 @@ def lunar(start_date, end_date, lat, lon):
 
     mtr = almanac.find_transits(observer, moon, t0, t1)
     mtr_alt, mtr_az,mtr_distance = observer.at(mtr).observe(moon).apparent().altaz()
-    for t,a in zip(mtr, mtr_alt.degrees):
+    for t,a,az in zip(mtr, mtr_alt.degrees, mtr_az.degrees):
         mp = almanac.moon_phase(eph, t)
         events.append({
             'event': 'transit',
             'time': t.astimezone(et),
             'degrees': mp.degrees,
-            'pos': deg_to_compass(az),
+            'pos': f"{int(a)}&deg; {deg_to_compass(az)}",
             'illumination': mp.degrees / 180 if mp.degrees / 180 < 1 else 180 / mp.degrees,
             'phase_primary': deg_to_phase_primary(mp.degrees),
             'phase_intermediate': deg_to_phase_intermediate(mp.degrees),

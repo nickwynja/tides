@@ -466,13 +466,29 @@ def tides():
 
     app.logger.info("getting met data")
     water_temp = requests.get(
-            f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=6&format=json",
+            f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
+            expire_after=seconds_until_hour(),
+            )
+    air_temp = requests.get(
+            f"{NOAA_TC_API}?product=air_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
             expire_after=seconds_until_hour(),
             )
 
     app.logger.info(f"  cached: {water_temp.from_cache}")
+    app.logger.info(f"  cached: {air_temp.from_cache}")
 
-    water_temp = water_temp.json()['data'][-1]
+    met_data = [
+            {
+                'type': 'Water temp',
+                'value': water_temp.json()['data'][0]['v'],
+                'time': water_temp.json()['data'][0]['t'],
+                },
+            {
+                'type': 'Air temp',
+                'value': air_temp.json()['data'][0]['v'],
+                'time': air_temp.json()['data'][0]['t'],
+                },
+            ]
 
     app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("getting tides")
@@ -738,7 +754,7 @@ def tides():
                            local_tide_stations=local_tide_stations,
                            local_met_stations=local_met_stations,
                            forecast=forecast,
-                           water_temp=water_temp,
+                           met_data=met_data,
                            tide_offset=tide_offset,
                            text_report=text,
                            ))

@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -129,13 +129,15 @@ select {
         <td>Station:</td>
         <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ met_station['id'] }}">{{ met_station['name'] }}</a></td>
     </tr>
+        {% for m in met_data %}
     <tr>
-        <td>Water temp:</td>
-        <td>{{ water_temp['v'] }}&deg;F</td>
+        <td>{{ m['type'] }}:</td>
+        <td>{{ m['value'] }}&deg;F</td>
     </tr>
+        {% endfor %}
     <tr>
         <td>Updated at:</td>
-        <td>{{ water_temp['t'] }}</td>
+        <td>{{ met_data[0]['time'] }}</td>
     </tr>
 </table>
 

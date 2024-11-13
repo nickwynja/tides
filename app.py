@@ -227,9 +227,9 @@ def solar(date, lat, lon):
     return d
 
 
-def lunar(date, lat, lon):
+def lunar(start_date, end_date, lat, lon):
 
-    key = cache_key(f"lunar_{date}{lat}{lon}")
+    key = cache_key(f"lunar_{start_date}{lat}{lon}")
     cache = get_obj_from_cache(key)
     if cache and not DISABLE_CACHE:
         app.logger.info("\tmoon data from cache")
@@ -242,53 +242,56 @@ def lunar(date, lat, lon):
     observer = eph['Earth'] + topos
     et = pytz.timezone('US/Eastern')
 
-    day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
-    day_end = day_start + timedelta(hours=24)
-    t0 = ts.from_datetime(et.localize(day_start))
-    t1 = ts.from_datetime(et.localize(day_end))
+    day_start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = end_date
+    t0 = ts.from_datetime(day_start)
+    t1 = ts.from_datetime(day_end)
 
+    events = []
     mr,y = almanac.find_risings(observer, moon, t0, t1)
-    mtr = almanac.find_transits(observer, moon, t0, t1)
-    ms,y = almanac.find_settings(observer, moon, t0, t1)
-    mp = almanac.moon_phase(eph, mtr[0])
-
-    moon_transit = mtr.astimezone(et)[0]
-
     mr_alt, mr_az, mr_distance = observer.at(mr).observe(moon).apparent().altaz()
-    tr_alt, tr_az, tr_distance = observer.at(mtr).observe(moon).apparent().altaz()
+    for t,az in zip(mr, mr_az.degrees):
+        events.append({
+            'event': 'rise',
+            'time': t.astimezone(et),
+            'degrees': az,
+            'pos': deg_to_compass(az)
+            })
+
+
+    mtr = almanac.find_transits(observer, moon, t0, t1)
+    mtr_alt, mtr_az,mtr_distance = observer.at(mtr).observe(moon).apparent().altaz()
+    for t,a in zip(mtr, mtr_alt.degrees):
+        mp = almanac.moon_phase(eph, t)
+        events.append({
+            'event': 'transit',
+            'time': t.astimezone(et),
+            'degrees': mp.degrees,
+            'pos': deg_to_compass(az),
+            'illumination': mp.degrees / 180 if mp.degrees / 180 < 1 else 180 / mp.degrees,
+            'phase_primary': deg_to_phase_primary(mp.degrees),
+            'phase_intermediate': deg_to_phase_intermediate(mp.degrees),
+            'text': f"{int(a)}&deg; {deg_to_compass(a)}",
+            })
+        events.append({
+            'event': 'offset',
+            'time': t.astimezone(et) + timedelta(hours=12),
+            })
+        # moon_none = moon_transit + timedelta(hours=12)
+
+    ms,y = almanac.find_settings(observer, moon, t0, t1)
     ms_alt, ms_az, ms_distance = observer.at(ms).observe(moon).apparent().altaz()
-
-    pos_at_rise = deg_to_compass(mr_az.degrees[0])
-
-    try:
-        moon_set = ms.astimezone(et)[0]
-        pos_at_set = deg_to_compass(ms_az.degrees[0])
-    except IndexError as e:
-        moon_set = None
-        pos_at_set = None
+    for t,a in zip(ms, ms_az.degrees):
+        events.append({
+            'event': 'set',
+            'time': t.astimezone(et),
+            'pos': deg_to_compass(a),
+            })
 
 
-    d = {
-        'times': {
-            'rise': mr.astimezone(et)[0],
-            'transit': moon_transit,
-            'set': moon_set,
-            'none': moon_transit + timedelta(hours=12),
-            },
-        'positions': {
-            'rise': pos_at_rise,
-            'transit': f"{int(tr_alt.degrees)}&deg; {deg_to_compass(tr_az.degrees)}",
-            'set': pos_at_set,
-            },
-        'degrees': mp.degrees,
-        'illumination': mp.degrees / 180 if mp.degrees / 180 < 1 else 180 / mp.degrees,
-        'phase_primary': deg_to_phase_primary(mp.degrees),
-        'phase_intermediate': deg_to_phase_intermediate(mp.degrees),
-        }
+    store_obj_in_cache(key, events)
 
-    store_obj_in_cache(key, d)
-
-    return d
+    return events
 
 
 def get_obj_from_cache(key):
@@ -359,14 +362,14 @@ def tides():
                                 )
                         )
 
-    DAYS = 3
+    DAYS = 7
 
     tz = 'US/Eastern'
     EASTERN = pytz.timezone(tz)
     local_now = datetime.now(pytz.timezone(tz))
     tz_offset = int(local_now.utcoffset().total_seconds()/60/60)
     # start_date = local_now.strftime('%Y%m%d')
-    start_date_dt = (local_now - timedelta(days = 1)).replace(microsecond=0, second=0, minute=0)
+    start_date_dt = (local_now - timedelta(days = 1)).replace(microsecond=0, second=0, minute=0, hour=0)
     end_date_dt = (local_now + timedelta(days = DAYS))
     start_date = start_date_dt.strftime('%Y%m%d')
     end_date = end_date_dt.strftime('%Y%m%d')
@@ -576,48 +579,54 @@ def tides():
     app.logger.info(time.perf_counter()-timer_start)
     app.logger.info("calc sun/moon data")
 
-    moon = []
     sun = []
     for date in pd.date_range(start=start_date, end=end_date):
         sun.append(solar(date, lat, lon))
-        moon.append(lunar(date, lat, lon))
 
+    moon_events = lunar(start_date_dt, end_date_dt, lat, lon)
 
     app.logger.info('before sun loop')
     app.logger.info(time.perf_counter()-timer_start)
 
     fig.update_layout(shapes=sun_vlines(sun))
-    fig.update_layout(annotations=sun_annots(sun) + wind_annots)
 
-    app.logger.info('after sun loop')
+    app.logger.info('after sun layout')
+
     app.logger.info(time.perf_counter()-timer_start)
 
-    moon_data = []
-    for m in moon:
-        for e,t in m['times'].items():
-            if t is not None:
-                if e == 'transit':
-                    value = tide_max * m['illumination']
-                    text = (f"Moon upper transit at {t.strftime('%H:%m')}<br>"
-                            + f"Phase: {m['phase_primary']}<br>"
-                            + f"{round(m['degrees'])}&deg; {m['phase_intermediate']}<br>"
-                            + f"Illumination: {round(m['illumination'] * 100)}% <br>"
-                            + f"Elevation: {m['positions'][e]}")
-                elif e == 'none':
-                    value = None
-                else:
-                    value = 0
-                    text = (f"Moon {e} at {t.strftime('%H:%m')}<br>"
-                            +f"Direction: {m['positions'][e]}")
+    fig.update_layout(annotations=sun_annots(sun) + wind_annots)
 
-                moon_data.append({
-                    'time': t,
-                    'phen': e,
-                    'fracillum': m['illumination'],
-                    'value': 0,
-                    'value': value,
-                    'text': text,
-                      })
+    app.logger.info('after sun annotations')
+    app.logger.info(time.perf_counter()-timer_start)
+
+    # print(moon_events)
+
+    moon_data = []
+
+
+    for m in moon_events:
+            if m['event'] == 'transit':
+                value = tide_max * m['illumination']
+                text = (f"Moon upper transit at {m['time'].strftime('%H:%m')}<br>"
+                        + f"Phase: {m['phase_primary']}<br>"
+                        + f"{round(m['degrees'])}&deg; {m['phase_intermediate']}<br>"
+                        + f"Illumination: {round(m['illumination'] * 100)}% <br>"
+                        + f"Elevation: {m['pos']}")
+            elif m['event'] == 'offset':
+                value = None
+            else:
+                value = 0
+                text = (f"Moon {m['event']} at {m['time'].strftime('%H:%m')}<br>"
+                        +f"Direction: {m['pos']}")
+
+            moon_data.append({
+                'time': m['time'],
+                'phen': m['event'],
+                'fracillum': m['illumination'] if 'illumination' in m else 0,
+                'value': 0,
+                'value': value,
+                'text': text,
+                  })
 
     moon_data = sorted(moon_data, key=lambda d: d['time'])
     dm = pd.DataFrame(moon_data)
@@ -683,28 +692,29 @@ def tides():
     dtt = dt[dt['Date'].dt.strftime('%Y-%m-%d') == today]
     dd = pd.merge(dct, dtt,  how="outer", on=['Date', 'Type'])
 
+    # print(moon_data)
+
     text = [
-            {'time': sun[1]['dawn'],
-             'text': 'dawn',
-             },
-            {'time': sun[1]['rise'],
-             'text': 'sun rise',
-             },
-            {'time': sun[1]['set'],
-             'text': 'sun set',
-             },
-            {'time': sun[1]['dusk'],
-             'text': "dusk",
-             },
-            {'time': moon[1]['times']['rise'],
-             'text': "moon rise",
-             },
-            ]
+        {'time': sun[1]['dawn'],
+         'text': 'dawn',
+         },
+        {'time': sun[1]['rise'],
+         'text': 'sun rise',
+         },
+        {'time': sun[1]['set'],
+         'text': 'sun set',
+         },
+        {'time': sun[1]['dusk'],
+         'text': "dusk",
+         },
+        # {'time': moon[1]['times']['rise'],
+        #  'text': "moon rise",
+        #  },
+        ]
+    # moon_set = moon[1]['times']['set']
 
-    moon_set = moon[1]['times']['set']
-
-    if moon_set:
-        text.append({'time': moon_set, 'text': 'moon set'})
+    # if moon_set:
+    #     text.append({'time': moon_set, 'text': 'moon set'})
 
     for idx,d in dd.iterrows():
             text.append({'time': EASTERN.localize(d['Date'].to_pydatetime()),

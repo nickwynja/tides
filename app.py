@@ -651,7 +651,7 @@ def tides():
     fig.update_xaxes(
         range=[
             local_now - timedelta(hours=2),
-            local_now + timedelta(hours=12),
+            local_now + timedelta(hours=8),
             ],
         minallowed=start_date_dt,
         maxallowed=end_date_dt,
@@ -678,8 +678,13 @@ def tides():
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')
-    fig_html = fig.to_html(full_html=False, include_plotlyjs='cdn',
-                           config = {'displayModeBar': False})
+
+    fig_html = fig.to_html(
+            full_html=False,
+            include_plotlyjs='cdn',
+            config={
+                'displayModeBar': False,
+                })
 
 
     app.logger.info(time.perf_counter()-timer_start)

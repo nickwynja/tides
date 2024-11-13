@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, abort, render_template, make_response, url_for, jsonify
+from flask import Flask, request, redirect, abort, render_template, make_response, url_for, jsonify, send_from_directory
 from urllib.parse import urlparse
 import logging
 import re
@@ -791,6 +791,12 @@ def manifest():
         "theme_color": "#3367D6",
         "description": "Weather forecast information",
     })
+
+
+@app.route('/service-worker.js')
+def service_worker():
+    return send_from_directory(app.root_path,
+                                     'service-worker.js')
 
 
 if __name__ == '__main__':

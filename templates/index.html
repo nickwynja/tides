@@ -109,7 +109,7 @@ select {
         {% for t in text_report %}
         <tr>
             <td>{{ t.time.strftime('%H:%M')}}</td>
-            <td>{{ t.text}}</td>
+            <td>{{ t.text|safe}}</td>
         </tr>
         {% endfor %}
     </table>

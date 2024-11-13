@@ -648,10 +648,15 @@ def tides():
      fixedrange = True,
     )
 
+    if "iPhone" in request.headers.get('User-Agent'):
+        max_range = local_now + timedelta(hours=6)
+    else:
+        max_range = local_now + timedelta(hours=12)
+
     fig.update_xaxes(
         range=[
             local_now - timedelta(hours=2),
-            local_now + timedelta(hours=8),
+            max_range,
             ],
         minallowed=start_date_dt,
         maxallowed=end_date_dt,

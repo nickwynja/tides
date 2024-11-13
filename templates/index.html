@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,10 +23,11 @@ td {
     padding: 0 5px 5px 5px;
 }
 
-form,
-form select,
-form input {
-    font-size: 16px;
+
+select,
+select:focus,
+input {
+    font-size: 18px;
 }
 
 form.flex {
@@ -38,8 +39,13 @@ form .row {
     padding-bottom: 5px;
 }
 
+label {
+    margin-left: 10px;
+
+}
+
 select {
-    max-width: 90%;
+    max-width: 350px;
 }
 
 #offset {

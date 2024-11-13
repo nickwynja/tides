@@ -718,7 +718,7 @@ def tides():
     moon_set = [x for x in moon_data if x['phen'] == "set"]
 
     text = [
-            {'time': EASTERN.localize(datetime.now()),
+            {'time': local_now,
              'text': '<span style="color: green;">now</span>',
              },
             {'time': sun[1]['dawn'],

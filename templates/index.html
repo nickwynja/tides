@@ -49,7 +49,7 @@ input {
 form.flex {
     display: flex;
     flex-wrap: wrap;
-    margin: 20px 0;
+    margin: 5px 0;
 }
 
 form .row {
@@ -99,14 +99,14 @@ select {
           {% endfor %}
       </select>
     </div>
-    <div class="row">
-      <label for="met">Met:</label>
-      <select name="met" id="met">
-          {% for s in local_met_stations | sort(attribute='name') %}
-          <option value="{{s.id}}" {{'selected' if met_station['id'] == s['id']}} >{{ s.name }}</option>
-          {% endfor %}
-      </select>
-    </div>
+    <!-- <div class="row"> -->
+    <!--   <label for="met">Met:</label> -->
+    <!--   <select name="met" id="met" hidden> -->
+    <!--       {% for s in local_met_stations | sort(attribute='name') %} -->
+    <!--       <option value="{{s.id}}" {{'selected' if met_station['id'] == s['id']}} >{{ s.name }}</option> -->
+    <!--       {% endfor %} -->
+    <!--   </select> -->
+    <!-- </div> -->
     <div class="row">
       <label for="offset">+/-</label>
       <input type="number" name="offset" id="offset"/>

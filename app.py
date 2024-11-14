@@ -682,16 +682,18 @@ def tides():
         tickcolor= "black",
         ticklen=10,
         tickangle=0,
-        minor=dict(
-            ticklen=4,
-            dtick=60*60*1000,
-            tick0=datetime.today().strftime('%Y-%m-%d'),
-            griddash='dot',
-            gridcolor='white'
-        )
+        dtick=60*60*1000,
+        # minor=dict(
+        #     ticklen=4,
+        #     dtick=60*60*1000,
+        #     tick0=datetime.today().strftime('%Y-%m-%d'),
+        #     griddash='dot',
+        #     gridcolor='grey'
+        # )
     )
 
     fig.update_layout(
+            template='plotly_dark',
             showlegend=False,
             height=450,
             dragmode='pan',

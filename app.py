@@ -21,9 +21,11 @@ from skyfield.api import load, wgs84
 import time
 import hashlib
 import os
+from flask_compress import Compress
 
 app = Flask(__name__)
 turbo = Turbo(app)
+Compress(app)
 
 # https://requests-cache.readthedocs.io/en/stable/user_guide/general.html#patching
 requests_cache.install_cache()

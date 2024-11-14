@@ -51,10 +51,15 @@ select:focus,
 button,
 input {
     font-size: 18px;
+    font-family: monospace;
     background-color: #888;
     border-color: #888;
     border-radius: 2px;
     border-style: solid;
+    /* the following ensures they're all using the same box-model for rendering */
+    -moz-box-sizing: content-box; /* or `border-box` */
+    -webkit-box-sizing: content-box;
+    box-sizing: content-box;
 }
 
 a {

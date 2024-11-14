@@ -704,7 +704,7 @@ def tides():
 
     fig_html = fig.to_html(
             full_html=False,
-            include_plotlyjs='cdn',
+            include_plotlyjs=False,
             config={
                 'displayModeBar': False,
                 })

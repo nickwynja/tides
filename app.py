@@ -786,7 +786,7 @@ def manifest():
         "id": "/",
         "start_url": "/",
         "background_color": "#3367D6",
-        "display": "standalone",
+        "display": "fullscreen",
         "scope": "/",
         "theme_color": "#3367D6",
         "description": "Weather forecast information",

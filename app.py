@@ -361,7 +361,7 @@ def tides():
                                 )
                         )
 
-    DAYS = 7
+    DAYS = 2
 
     tz = 'US/Eastern'
     EASTERN = pytz.timezone(tz)
@@ -584,9 +584,6 @@ def tides():
     wind_annots = []
 
     for idx,t in enumerate(times[:24]):
-        if (idx + 1) % 2 == 0:  # skip every other hour for display purposes
-            pass
-        else:
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt<br>{waves[idx].text}'"
             wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)]
 
@@ -665,15 +662,18 @@ def tides():
     )
 
     if "iPhone" in request.headers.get('User-Agent'):
-        max_range = local_now + timedelta(hours=6)
+        range = [
+                local_now - timedelta(hours=1),
+                local_now + timedelta(hours=4)
+                ]
     else:
-        max_range = local_now + timedelta(hours=12)
+        range = [
+                local_now - timedelta(hours=2),
+                local_now + timedelta(hours=12)
+                ]
 
     fig.update_xaxes(
-        range=[
-            local_now - timedelta(hours=2),
-            max_range,
-            ],
+        range=range,
         minallowed=start_date_dt,
         maxallowed=end_date_dt,
         automargin=False,

@@ -378,12 +378,12 @@ def tides():
 
     bbox = {
             "lat": [
-                40.4915,
-                41.2743
+                40.7435,
+                41.3655
                 ],
             "lon": [
-                -71.4179,
-                -73.9572,
+                -71.7354,
+                -72.7853,
                 ]
             }
 
@@ -685,13 +685,6 @@ def tides():
         ticklen=10,
         tickangle=0,
         dtick=60*60*1000,
-        # minor=dict(
-        #     ticklen=4,
-        #     dtick=60*60*1000,
-        #     tick0=datetime.today().strftime('%Y-%m-%d'),
-        #     griddash='dot',
-        #     gridcolor='grey'
-        # )
     )
 
     fig.update_layout(

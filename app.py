@@ -586,7 +586,7 @@ def tides():
 
     for idx,t in enumerate(times[:24]):
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt<br>{waves[idx].text}'"
-            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.15, text=cond, showarrow=False)]
+            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1, yshift=55, text=cond, showarrow=False)]
 
 
     sun = []
@@ -653,11 +653,13 @@ def tides():
                 local_now - timedelta(hours=1),
                 local_now + timedelta(hours=4)
                 ]
+        height = 450
     else:
         range = [
                 local_now - timedelta(hours=2),
                 local_now + timedelta(hours=16)
                 ]
+        height = 600
 
     fig.update_xaxes(
         range=range,
@@ -672,7 +674,7 @@ def tides():
     fig.update_layout(
             template='plotly_dark',
             showlegend=False,
-            height=450,
+            height=height,
             dragmode='pan',
             margin=dict(l=0, r=0, t=50, b=25),
             xaxis_tickformatstops = [

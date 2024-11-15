@@ -665,11 +665,8 @@ def tides():
         maxallowed=end_date_dt,
         automargin=False,
         ticks="outside",
-        # ticklabelmode="period",
         tickcolor= "black",
-        # ticklen=10,
         tickangle=0,
-        # dtick=60*60*1000,
     )
 
     fig.update_layout(
@@ -677,7 +674,7 @@ def tides():
             showlegend=False,
             height=450,
             dragmode='pan',
-            margin=dict(l=0, r=0, t=50, b=50),
+            margin=dict(l=0, r=0, t=50, b=25),
             xaxis_tickformatstops = [
                 dict(dtickrange=[60000, 60000 * 160], value="%H:%M"),
                 dict(dtickrange=[60000 * 160, 86400000], value="%m/%d %H:%M"),

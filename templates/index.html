@@ -39,6 +39,35 @@ document.addEventListener("turbo:load", () => {
         favCheck.checked = false;
         favState.checked = false;
     }
+
+    var myPlot = document.getElementById('myPlot')
+    myPlot.on('plotly_relayout', function(){
+        var range = myPlot.layout.xaxis.range;
+        var start = new Date(range[0]).getTime() / 1000;
+        var end = new Date(range[1]).getTime() / 1000;
+
+        var annotations = [];
+
+        if ((end - start) > 64800) {
+            myPlot.layout.annotations.forEach(item => {
+                if (item.y == 1.15) {
+                    item.visible = false;
+                    annotations.push(item);
+                }
+            });
+            Plotly.update(myPlot, {annotations: annotations});
+        } else {
+            myPlot.layout.annotations.forEach(item => {
+                if (item.y == 1.15) {
+                    item.visible = true;
+                    annotations.push(item);
+                }
+            });
+            Plotly.update(myPlot, {annotations: annotations});
+        };
+	});
+
+
 })
 
 

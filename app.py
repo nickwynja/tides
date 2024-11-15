@@ -656,7 +656,7 @@ def tides():
     else:
         range = [
                 local_now - timedelta(hours=2),
-                local_now + timedelta(hours=12)
+                local_now + timedelta(hours=16)
                 ]
 
     fig.update_xaxes(
@@ -665,11 +665,11 @@ def tides():
         maxallowed=end_date_dt,
         automargin=False,
         ticks="outside",
-        ticklabelmode="period",
+        # ticklabelmode="period",
         tickcolor= "black",
-        ticklen=10,
+        # ticklen=10,
         tickangle=0,
-        dtick=60*60*1000,
+        # dtick=60*60*1000,
     )
 
     fig.update_layout(
@@ -678,6 +678,10 @@ def tides():
             height=450,
             dragmode='pan',
             margin=dict(l=0, r=0, t=50, b=50),
+            xaxis_tickformatstops = [
+                dict(dtickrange=[60000, 60000 * 160], value="%H:%M"),
+                dict(dtickrange=[60000 * 160, 86400000], value="%m/%d %H:%M"),
+                ]
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')
@@ -685,6 +689,7 @@ def tides():
     fig_html = fig.to_html(
             full_html=False,
             include_plotlyjs=False,
+            div_id="myPlot",
             config={
                 'displayModeBar': False,
                 })

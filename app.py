@@ -764,11 +764,18 @@ def manifest():
         "name": "Tide, Current, and Wind Forecast",
         "id": "/",
         "start_url": "/",
-        "background_color": "#3367D6",
+        "background_color": "#000000",
         "display": "fullscreen",
         "scope": "/",
-        "theme_color": "#3367D6",
+        "theme_color": "#4ea6d9",
         "description": "Weather forecast information",
+        "icons": [
+            {
+                "src": "/static/icon.png",
+                "type": "image/png",
+                "sizes": "512x512"
+                },
+            ]
     })
 
 

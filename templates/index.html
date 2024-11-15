@@ -24,6 +24,23 @@
                 });
         });
     }
+
+document.addEventListener("turbo:load", () => {
+    var favCheck = document.getElementById('fav');
+    var favState = document.getElementById('fav_state');
+
+    document.getElementById('tide').onchange = (event) => {
+        favCheck.checked = false;
+        favState.checked = false;
+    }
+
+    document.getElementById('current').onchange = (event) => {
+        favCheck.checked = false;
+        favState.checked = false;
+    }
+})
+
+
 </script>
 
 
@@ -62,6 +79,7 @@ input {
     -moz-box-sizing: border-box; /* or `border-box` */
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
+    vertical-align: middle;
 }
 
 a {
@@ -102,6 +120,10 @@ select {
     max-width: 100%;
 }
 
+.favs {
+    margin: 0 5px 15px 0;
+}
+
 </style>
 
 <title>Tides</title>
@@ -110,6 +132,19 @@ select {
 <body>
 
 {{ fig_html | safe }}
+
+
+<div class="favs">
+{% for f in favs %}
+
+{% set tf = f.split(":")[0] %}
+{% set cf = f.split(":")[1] %}
+
+
+<a href={{ url_for('tides', current=cf, tide=tf) }}>{{ tf }}:{{ cf }}</a>
+
+{% endfor %}
+</div>
 
 <form action="/" method="POST" class="flex">
     <div class="row">
@@ -142,8 +177,9 @@ select {
       {% if tide_offset != 0 %}
       <span class="offset-num">{{ "+" if tide_offset > 0 else ""}}{{ tide_offset }}min</span>
       {% endif %}
-    </div>
-    <div class="row">
+        <label for="fav">Fav</label>
+        <input type="checkbox" id="fav" name="fav" {{ 'checked' if is_fav else '' }} />
+        <input hidden type="checkbox" id="fav_state" name="fav_state" {{ 'checked' if is_fav else '' }} />
         <button type="submit"/>Submit</button>
     </div>
 </form>

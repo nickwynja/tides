@@ -39,9 +39,8 @@ if not app.debug:
     app.logger.setLevel(gunicorn_logger.level)
 
 
-DISABLE_CACHE = True if app.debug and True else False
-
-app.logger.info(f"Disabled file cache: {DISABLE_CACHE}")
+DEBUG_CACHE_SOLUNAR = False
+DISABLE_CACHE = False if DEBUG_CACHE_SOLUNAR is True and app.debug else True
 
 def sun_vlines(sun):
     vlines = []
@@ -199,7 +198,6 @@ def solar(date, lat, lon):
     key = cache_key(f"solar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
     if cache and not DISABLE_CACHE:
-        app.logger.info("\tsun  data from cache")
         return cache
 
 
@@ -234,7 +232,6 @@ def lunar(start_date, end_date, lat, lon):
     key = cache_key(f"lunar_{start_date}{lat}{lon}")
     cache = get_obj_from_cache(key)
     if cache and not DISABLE_CACHE:
-        app.logger.info("\tmoon data from cache")
         return cache
 
     ts = load.timescale()
@@ -339,7 +336,6 @@ def cache_key(s):
 @app.route('/', methods=["GET", "POST"])
 def tides():
 
-    app.logger.info("load initiated")
     timer_start = time.perf_counter()
 
     station_defaults = {
@@ -354,14 +350,42 @@ def tides():
         tide_param = request.form.get('tide')
         met_param = request.form.get('met')
         offset_param = request.form.get('offset')
+        fav = request.form.get('fav', None)
+        fav_state = request.form.get('fav_state')
 
-        return redirect(url_for('tides',
-                                current=current_param if current_param != station_defaults['current'] else None,
-                                tide=tide_param if tide_param != station_defaults['tide'] else None,
-                                met=met_param if met_param != station_defaults['met'] else None,
-                                offset=offset_param if offset_param != "" else None,
-                                )
-                        )
+        fav_string = f"{tide_param}:{current_param}"
+
+        if fav and fav != fav_state:
+            update_fav = True
+            set_fav = True
+        elif fav is None and fav_state == "on":
+            update_fav = True
+            set_fav = False
+        else:
+            update_fav = None
+
+        resp = make_response(redirect(url_for('tides',
+                                              current=current_param if current_param != station_defaults['current'] else None,
+                                              tide=tide_param if tide_param != station_defaults['tide'] else None,
+                                              met=met_param if met_param != station_defaults['met'] else None,
+                                              offset=offset_param if offset_param != "" else None,
+                                              )
+                                      )
+                             )
+
+        if update_fav:
+            favs = json.loads(request.cookies.get('favs', '[]'))
+            if set_fav and fav_string not in favs:
+                favs.append(fav_string)
+            if set_fav is False and fav_string in favs:
+                favs.remove(fav_string)
+            resp.set_cookie('favs',
+                            json.dumps(favs,
+                                       separators=(',', ':')),
+                            max_age=157784760)
+
+        return resp
+
 
     DAYS = 2
 
@@ -428,29 +452,23 @@ def tides():
     tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
     met_station = [x for x in local_met_stations if x['id'] == met_param][0]
 
-    app.logger.info(time.perf_counter()-timer_start)
+    favs = json.loads(request.cookies.get('favs', '[]'))
+    fav_string = f"{tide_param}:{current_param}"
+    is_fav = True if fav_string in favs else False
 
-    app.logger.info("getting station metadata")
     station_metadata = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station['id']}.json",
             )
-
-    app.logger.info(f"  cached: {station_metadata.from_cache}")
 
     station_metadata = station_metadata.json()
 
     lat = station_metadata['stations'][0]['lat']
     lon = station_metadata['stations'][0]['lng']
 
-    app.logger.info(time.perf_counter()-timer_start)
-
-    app.logger.info("getting marine forecast")
     forecast_daily = requests.get(
             f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
             expire_after=seconds_until_hour(),
             )
-
-    app.logger.info(f"  cached: {forecast_daily.from_cache}")
 
     forecast_periods = forecast_daily.json()['time']['startPeriodName']
     forecast_text = forecast_daily.json()['data']['text']
@@ -464,9 +482,6 @@ def tides():
                 })
 
 
-    app.logger.info(time.perf_counter()-timer_start)
-
-    app.logger.info("getting met data")
     water_temp = requests.get(
             f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
             expire_after=seconds_until_hour(),
@@ -475,9 +490,6 @@ def tides():
             f"{NOAA_TC_API}?product=air_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
             expire_after=seconds_until_hour(),
             )
-
-    app.logger.info(f"  cached: {water_temp.from_cache}")
-    app.logger.info(f"  cached: {air_temp.from_cache}")
 
     met_data = [
             {
@@ -492,13 +504,9 @@ def tides():
                 },
             ]
 
-    app.logger.info(time.perf_counter()-timer_start)
-    app.logger.info("getting tides")
     tides = requests.get(
             f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
             )
-
-    app.logger.info(f"  cached: {tides.from_cache}")
 
     dt = pd.DataFrame.from_dict(tides.json()['predictions'])
     dt = dt.rename(columns={
@@ -520,13 +528,9 @@ def tides():
 
     tide_max = dt['Feet'].max()  # used in chart for max moon %
 
-    app.logger.info(time.perf_counter()-timer_start)
-    app.logger.info("getting currents")
     currents = requests.get(
             f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
-
-    app.logger.info(f"  cached: {currents.from_cache}")
 
     dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])
     dc = dc.rename(columns={
@@ -567,15 +571,10 @@ def tides():
         )
     )
 
-    app.logger.info(time.perf_counter()-timer_start)
-    app.logger.info("getting marine wind hourly")
     forecast_marine = requests.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
             expire_after=seconds_until_hour(),
             )
-
-
-    app.logger.info(f"  cached: {forecast_marine.from_cache}")
 
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
     root = tree.getroot()
@@ -590,28 +589,14 @@ def tides():
             wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)]
 
 
-    app.logger.info(time.perf_counter()-timer_start)
-    app.logger.info("calc sun/moon data")
-
     sun = []
     for date in pd.date_range(start=start_date, end=end_date):
         sun.append(solar(date, lat, lon))
 
     moon_events = lunar(start_date_dt, end_date_dt, lat, lon)
 
-    app.logger.info('before sun loop')
-    app.logger.info(time.perf_counter()-timer_start)
-
     fig.update_layout(shapes=sun_vlines(sun))
-
-    app.logger.info('after sun layout')
-
-    app.logger.info(time.perf_counter()-timer_start)
-
     fig.update_layout(annotations=sun_annots(sun) + wind_annots)
-
-    app.logger.info('after sun annotations')
-    app.logger.info(time.perf_counter()-timer_start)
 
     moon_data = []
 
@@ -704,9 +689,6 @@ def tides():
                 'displayModeBar': False,
                 })
 
-
-    app.logger.info(time.perf_counter()-timer_start)
-
     dct = dc[dc['Date'].dt.strftime('%Y-%m-%d') == today]
     dtt = dt[dt['Date'].dt.strftime('%Y-%m-%d') == today]
     dd = pd.merge(dct, dtt,  how="outer", on=['Date', 'Type'])
@@ -742,8 +724,6 @@ def tides():
             text.append({'time': EASTERN.localize(d['Date'].to_pydatetime()),
                          'text': d['Type']})
 
-    app.logger.info(time.perf_counter()-timer_start)
-
     text = sorted(text, key=lambda d: d['time'])
 
     resp = make_response(render_template('index.html', fig_html=fig_html,
@@ -757,6 +737,8 @@ def tides():
                            met_data=met_data,
                            tide_offset=tide_offset,
                            text_report=text,
+                           is_fav=is_fav,
+                           favs=favs,
                            ))
 
     if current_param != station_defaults['current']:
@@ -770,7 +752,7 @@ def tides():
                                    separators=(',', ':')),
                     max_age=157784760)
 
-    app.logger.info(time.perf_counter()-timer_start)
+    app.logger.info(f"resp time: {time.perf_counter()-timer_start} with solunar cache disabled = {DISABLE_CACHE}")
 
     return resp
 

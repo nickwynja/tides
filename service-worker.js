@@ -35,6 +35,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method === 'POST') {
+    return; // Ignore POST requests for caching.
+  }
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

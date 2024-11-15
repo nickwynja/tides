@@ -586,7 +586,7 @@ def tides():
 
     for idx,t in enumerate(times[:24]):
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt<br>{waves[idx].text}'"
-            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.05, text=cond, showarrow=False)]
+            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1.15, text=cond, showarrow=False)]
 
 
     sun = []
@@ -677,7 +677,7 @@ def tides():
             showlegend=False,
             height=450,
             dragmode='pan',
-            margin=dict(l=0, r=0, t=20, b=50),
+            margin=dict(l=0, r=0, t=50, b=50),
             )
 
     fig.add_vline(x=local_now, line_width=1, line_dash="dash", line_color='green')
@@ -767,7 +767,7 @@ def manifest():
         "background_color": "#000000",
         "display": "fullscreen",
         "scope": "/",
-        "theme_color": "#4ea6d9",
+        "theme_color": "#000000",
         "description": "Weather forecast information",
         "icons": [
             {

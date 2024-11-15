@@ -678,8 +678,8 @@ def tides():
             dragmode='pan',
             margin=dict(l=0, r=0, t=50, b=25),
             xaxis_tickformatstops = [
-                dict(dtickrange=[60000, 60000 * 160], value="%H:%M"),
-                dict(dtickrange=[60000 * 160, 86400000], value="%m/%d %H:%M"),
+                dict(dtickrange=[0, 60000 * 200], value="%H:%M"),
+                dict(dtickrange=[60000 * 200, 86400000], value="%m/%d %H:%M"),
                 ]
             )
 

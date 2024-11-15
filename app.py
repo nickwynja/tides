@@ -586,7 +586,7 @@ def tides():
 
     for idx,t in enumerate(times[:24]):
             cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt<br>{waves[idx].text}'"
-            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1, yshift=55, text=cond, showarrow=False)]
+            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 
 
     sun = []

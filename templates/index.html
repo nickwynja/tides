@@ -50,7 +50,7 @@ document.addEventListener("turbo:load", () => {
 
         if ((end - start) > 64800) {
             myPlot.layout.annotations.forEach(item => {
-                if (item.y == 1.15) {
+                if (item.name == "wind") {
                     item.visible = false;
                     annotations.push(item);
                 }
@@ -58,7 +58,7 @@ document.addEventListener("turbo:load", () => {
             Plotly.update(myPlot, {annotations: annotations});
         } else {
             myPlot.layout.annotations.forEach(item => {
-                if (item.y == 1.15) {
+                if (item.name == "wind") {
                     item.visible = true;
                     annotations.push(item);
                 }

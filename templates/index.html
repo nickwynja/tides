@@ -122,9 +122,16 @@ a {
     color: #4ea6d9;
 }
 
-form.flex {
+img {
+    max-width: 100%;
+}
+
+.flex {
     display: flex;
     flex-wrap: wrap;
+}
+
+form.flex {
     margin: 5px 0;
 }
 
@@ -132,9 +139,14 @@ form .row {
     margin-bottom: 5px;
 }
 
+
 @media (min-width: 800px) {
     form .row {
         margin: 0 20px 5px 0;
+    }
+    .details .row {
+        width: 50%
+
     }
 }
 
@@ -219,86 +231,86 @@ select {
     </div>
 </form>
 
-<details>
-    <summary>Today's text report</summary>
-    <br>
-    <table>
-        {% for t in text_report %}
-        <tr>
-            <td>{{ t.time.strftime('%H:%M')}}</td>
-            <td>{{ t.text|safe}}</td>
-        </tr>
-        {% endfor %}
-    </table>
-</details>
+<div class="flex details">
+    <div class="row">
+        <details>
+            <summary>Today's text report</summary>
+            <br>
+            <table>
+                {% for t in text_report %}
+                <tr>
+                    <td>{{ t.time.strftime('%H:%M')}}</td>
+                    <td>{{ t.text|safe}}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </details>
 
+        <h3>WX</h3>
+        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}">Marine Forecast</a></p>
+        <table>
+            {% for f in forecast %}
+            <tr>
+                <td>{{ f.when}}</td>
+                <td>{{ f.text}}</td>
+            </tr>
+            {% endfor %}
+        </table>
 
-<h3>WX</h3>
+        <h3>Observations</h3>
+        <table>
+            <tr>
+                <td>Station:</td>
+                <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ met_station['id'] }}">{{ met_station['name'] }}</a></td>
+            </tr>
+            {% for m in met_data %}
+            <tr>
+                <td>{{ m['type'] }}:</td>
+                <td>{{ m['value'] }}&deg;F</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td>Updated at:</td>
+                <td>{{ met_data[0]['time'] }}</td>
+            </tr>
+        </table>
 
-<p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}">Marine Forecast</a></p>
+        <h3>Station Details</h3>
+        {% set tc = tide_station['lng']|string + "," + tide_station['lat']|string %}
+        {% set cc = current_station['lng']|string + "," + current_station['lat']|string %}
+        {% set at = "pk.eyJ1Ijoibmlja3d5bmphIiwiYSI6ImNtMzh6ZWN0YzBrbXUybG9nYXhjdnFlc2cifQ.uUURdxJOZ72zXmM9oqvW7g" %}
 
-<table>
-    {% for f in forecast %}
-    <tr>
-        <td>{{ f.when}}</td>
-        <td>{{ f.text}}</td>
-    </tr>
-    {% endfor %}
-</table>
-
-<h3>Observations</h3>
-
-<table>
-    <tr>
-        <td>Station:</td>
-        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ met_station['id'] }}">{{ met_station['name'] }}</a></td>
-    </tr>
-        {% for m in met_data %}
-    <tr>
-        <td>{{ m['type'] }}:</td>
-        <td>{{ m['value'] }}&deg;F</td>
-    </tr>
-        {% endfor %}
-    <tr>
-        <td>Updated at:</td>
-        <td>{{ met_data[0]['time'] }}</td>
-    </tr>
-</table>
-
-<h3>Station Details</h3>
-
-{% set tc = tide_station['lng']|string + "," + tide_station['lat']|string %}
-{% set cc = current_station['lng']|string + "," + current_station['lat']|string %}
-{% set at = "pk.eyJ1Ijoibmlja3d5bmphIiwiYSI6ImNtMzh6ZWN0YzBrbXUybG9nYXhjdnFlc2cifQ.uUURdxJOZ72zXmM9oqvW7g" %}
-
-<img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/600x400?padding=50&access_token={{at}}" />
-
-<table>
-    <tr>
-        <td style="color: blue;">Tide:</td>
-        <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ tide_station['id'] }}"</a>{{ tide_station['name'] }}</td>
-    </tr>
-    <tr>
-        <td></td>
-        <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ tide_station['lat'] }}&lng={{ tide_station['lng'] }}&zoom=11&type=tidepredictions&id={{ tide_station['id'] }}">View on map</td>
-    </tr>
-    <tr>
-        <td></td>
-        <td>{{ tide_station['lat'] }}, {{ tide_station['lng'] }}</td>
-    </tr>
-    <tr>
-        <td style="color: red;">Current:</td>
-        <td><a href="https://tidesandcurrents.noaa.gov/noaacurrents/predictions.html?id={{ current_station['id'] }}_1"</a>{{ current_station['name'] }}</td>
-    </tr>
-    <tr>
-        <td></td>
-        <td>{{ current_station['lat'] }}, {{ current_station['lng'] }}</td>
-    </tr>
-    <tr>
-        <td></td>
-        <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ current_station['lat'] }}&lng={{ current_station['lng'] }}&zoom=11&type=currentpredictions&id={{ current_station['id'] }}">View on map</td>
-    </tr>
-</table>
+        <table>
+            <tr>
+                <td style="color: blue;">Tide:</td>
+                <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ tide_station['id'] }}"</a>{{ tide_station['name'] }}</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ tide_station['lat'] }}&lng={{ tide_station['lng'] }}&zoom=11&type=tidepredictions&id={{ tide_station['id'] }}">View on map</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>{{ tide_station['lat'] }}, {{ tide_station['lng'] }}</td>
+            </tr>
+            <tr>
+                <td style="color: red;">Current:</td>
+                <td><a href="https://tidesandcurrents.noaa.gov/noaacurrents/predictions.html?id={{ current_station['id'] }}_1"</a>{{ current_station['name'] }}</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>{{ current_station['lat'] }}, {{ current_station['lng'] }}</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ current_station['lat'] }}&lng={{ current_station['lng'] }}&zoom=11&type=currentpredictions&id={{ current_station['id'] }}">View on map</td>
+            </tr>
+        </table>
+    </div>
+    <div class="row">
+        <img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/800x500?padding=50&access_token={{at}}" />
+    </div>
+</div>
 
 </body>
 </html>

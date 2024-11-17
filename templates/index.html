@@ -262,9 +262,9 @@ select {
         <table>
             <thead>
                 <tr>
-                    <th>Type</th>
+                    <th></th>
                     {% for station in met_data['Wind Speed'].keys() %}
-                    <th>{{ station }}</th>
+                    <th><a href="https://www.ndbc.noaa.gov/station_page.php?station={{station}}">{{ station }}</a></th>
                     {% endfor %}
                 </tr>
             </thead>

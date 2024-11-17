@@ -503,10 +503,13 @@ def tides():
 
     for st in ['NWHC3', 'MTKN6']:
 
-        #@TODO: cache with requests
+        buoy_data = requests.get(
+                f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",
+                expire_after=60*10,
+                )
 
         db = pd.read_csv(
-                f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",
+                StringIO(buoy_data.text),
                 sep='\s+'
                 )
         db = db.replace('MM', np.nan)
@@ -516,7 +519,7 @@ def tides():
 
         buoy_time = pd.to_datetime(f"{bl['#YY']}-{bl['MM']}-{bl['DD']}-{bl['hh']}:{bl['mm']}")
         buoy_time = pytz.utc.localize(buoy_time).astimezone(EASTERN)
-        met_data['Updated'][st] = buoy_time
+        met_data['Updated'][st] = buoy_time.strftime("%H:%M")
         met_data['Wind Speed'][st] = f"{mps_to_kt(bl['WSPD'])} kt" if not pd.isnull(bl['WSPD']) else "-"
         met_data['Wind Direction'][st] = f"{deg_to_compass(bl['WDIR'])}" if not pd.isnull(bl['WDIR']) else "-"
         met_data['Wind Gusts'][st] = f"{mps_to_kt(bl['GST'])} kt" if not pd.isnull(bl['GST']) else "-"

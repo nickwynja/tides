@@ -509,7 +509,7 @@ def tides():
                 f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",
                 sep='\s+'
                 )
-        db = db.replace('MM', np.NaN)
+        db = db.replace('MM', np.nan)
         db = db.bfill()
 
         bl = db.loc[1]

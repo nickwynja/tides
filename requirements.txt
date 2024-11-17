@@ -9,3 +9,4 @@ requests-cache
 turbo-flask
 skyfield
 flask-compress
+numpy

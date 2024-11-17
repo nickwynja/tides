@@ -22,6 +22,7 @@ import time
 import hashlib
 import os
 from flask_compress import Compress
+import numpy as np
 
 app = Flask(__name__)
 turbo = Turbo(app)
@@ -121,6 +122,14 @@ def deg_to_compass(num):
     val=int((num/22.5)+.5)
     arr=["N","NNE","NE","ENE","E","ESE", "SE", "SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]
     return arr[(val % 16)]
+
+def mps_to_kt(mps):
+    knots = float(mps) * 1.94384449
+    return round(knots)
+
+def c_to_f(celsius):
+    fahrenheit = (float(celsius) * 9/5) + 32
+    return round(fahrenheit)
 
 def until_next_event(row, df):
     if row['Knots'] == 0 :
@@ -482,27 +491,62 @@ def tides():
                 })
 
 
-    water_temp = requests.get(
-            f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
-            expire_after=seconds_until_hour(),
-            )
-    air_temp = requests.get(
-            f"{NOAA_TC_API}?product=air_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
-            expire_after=seconds_until_hour(),
-            )
+    met_data = {
+            'Water Temp': {},
+            'Wind Speed': {},
+            'Wind Direction': {},
+            'Wind Gusts': {},
+            'Air Temp': {},
+            'Pressure': {},
+            'Updated': {},
+            }
 
-    met_data = [
-            {
-                'type': 'Water temp',
-                'value': water_temp.json()['data'][0]['v'],
-                'time': water_temp.json()['data'][0]['t'],
-                },
-            {
-                'type': 'Air temp',
-                'value': air_temp.json()['data'][0]['v'],
-                'time': air_temp.json()['data'][0]['t'],
-                },
-            ]
+    for st in ['NWHC3', 'MTKN6']:
+
+        #@TODO: cache with requests
+
+        db = pd.read_csv(
+                f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",
+                sep='\s+'
+                )
+        db = db.replace('MM', np.NaN)
+        db = db.bfill()
+
+        bl = db.loc[1]
+
+        buoy_time = pd.to_datetime(f"{bl['#YY']}-{bl['MM']}-{bl['DD']}-{bl['hh']}:{bl['mm']}")
+        buoy_time = pytz.utc.localize(buoy_time).astimezone(EASTERN)
+        met_data['Updated'][st] = buoy_time
+        met_data['Wind Speed'][st] = f"{mps_to_kt(bl['WSPD'])} kt" if not pd.isnull(bl['WSPD']) else "-"
+        met_data['Wind Direction'][st] = f"{deg_to_compass(bl['WDIR'])}" if not pd.isnull(bl['WDIR']) else "-"
+        met_data['Wind Gusts'][st] = f"{mps_to_kt(bl['GST'])} kt" if not pd.isnull(bl['GST']) else "-"
+        met_data['Pressure'][st] = f"{bl['PRES']} hPa"
+        met_data['Air Temp'][st] = f"{c_to_f(bl['ATMP'])}&deg;F" if not pd.isnull(bl['ATMP']) else "-"
+        met_data['Water Temp'][st] = f"{c_to_f(bl['WTMP'])}&deg;F" if not pd.isnull(bl['WTMP']) else "-"
+
+    # water_temp = requests.get(
+    #         f"{NOAA_TC_API}?product=water_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
+    #         expire_after=seconds_until_hour(),
+    #         )
+    # air_temp = requests.get(
+    #         f"{NOAA_TC_API}?product=air_temperature&application=NOS.COOPS.TAC.WL&date=latest&datum=MLLW&station={met_param}&time_zone=lst_ldt&units=english&interval=&format=json",
+    #         expire_after=seconds_until_hour(),
+    #         )
+
+    # met_data_2 = [
+    #         {
+    #             'type': 'Water temp',
+    #             'value': water_temp.json()['data'][0]['v'],
+    #             'time': water_temp.json()['data'][0]['t'],
+    #             },
+    #         {
+    #             'type': 'Air temp',
+    #             'value': air_temp.json()['data'][0]['v'],
+    #             'time': air_temp.json()['data'][0]['t'],
+    #             },
+    #         ]
+
+    # print(met_data_2)
 
     tides = requests.get(
             f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",

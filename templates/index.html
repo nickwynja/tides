@@ -258,21 +258,26 @@ select {
         </table>
 
         <h3>Observations</h3>
+
         <table>
-            <tr>
-                <td>Station:</td>
-                <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ met_station['id'] }}">{{ met_station['name'] }}</a></td>
-            </tr>
-            {% for m in met_data %}
-            <tr>
-                <td>{{ m['type'] }}:</td>
-                <td>{{ m['value'] }}&deg;F</td>
-            </tr>
-            {% endfor %}
-            <tr>
-                <td>Updated at:</td>
-                <td>{{ met_data[0]['time'] }}</td>
-            </tr>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    {% for station in met_data['Wind Speed'].keys() %}
+                    <th>{{ station }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for data_type, values in met_data.items() %}
+                <tr>
+                    <td>{{ data_type }}</td>
+                    {% for station, value in values.items() %}
+                    <td>{{ value|safe }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
 
         <h3>Station Details</h3>

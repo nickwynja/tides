@@ -517,7 +517,7 @@ def tides():
             'Updated': {},
             }
 
-    for st in ['NWHC3', 'MTKN6']:
+    for st in ['BRHC3','NWHC3','NLHC3','MTKN6']:
 
         buoy_data = requests.get(
                 f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",
@@ -539,7 +539,7 @@ def tides():
         met_data['Wind Speed'][st] = f"{mps_to_kt(bl['WSPD'])} kt" if not pd.isnull(bl['WSPD']) else "-"
         met_data['Wind Direction'][st] = f"{deg_to_compass(bl['WDIR'])}" if not pd.isnull(bl['WDIR']) else "-"
         met_data['Wind Gusts'][st] = f"{mps_to_kt(bl['GST'])} kt" if not pd.isnull(bl['GST']) else "-"
-        met_data['Pressure'][st] = f"{bl['PRES']} hPa"
+        met_data['Pressure'][st] = f"{bl['PRES']} hPa" if not pd.isnull(bl['PRES']) else "-"
         met_data['Air Temp'][st] = f"{c_to_f(bl['ATMP'])}&deg;F" if not pd.isnull(bl['ATMP']) else "-"
         met_data['Water Temp'][st] = f"{c_to_f(bl['WTMP'])}&deg;F" if not pd.isnull(bl['WTMP']) else "-"
 

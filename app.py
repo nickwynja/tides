@@ -40,7 +40,7 @@ if not app.debug:
     app.logger.setLevel(gunicorn_logger.level)
 
 
-DEBUG_CACHE_SOLUNAR = False
+DEBUG_CACHE_SOLUNAR = True
 DISABLE_CACHE = False if DEBUG_CACHE_SOLUNAR is True and app.debug else True
 
 def sun_vlines(sun):
@@ -340,6 +340,22 @@ def date_hook(json_dict):
 def cache_key(s):
     # return hashlib.md5(s.encode('utf-8')).hexdigest()
     return s
+
+def get_moon_phases(start, end):
+    ts = load.timescale()
+    et = pytz.timezone('US/Eastern')
+    t0 = ts.from_datetime(start)
+    t1 = ts.from_datetime(end)
+    eph = load('de421.bsp')
+    t, y = almanac.find_discrete(t0, t1, almanac.moon_phases(eph))
+    phases = []
+
+    for t,p in zip(t.astimezone(et),[almanac.MOON_PHASES[yi] for yi in y]):
+        phases.append({
+                "date": t,
+                "phase": p,
+                })
+    return phases
 
 
 @app.route('/', methods=["GET", "POST"])
@@ -641,6 +657,10 @@ def tides():
         sun.append(solar(date, lat, lon))
 
     moon_events = lunar(start_date_dt, end_date_dt, lat, lon)
+    moon_phases = get_moon_phases(
+            start_date_dt,
+            start_date_dt + pd.offsets.MonthEnd(2)
+            )
 
     fig.update_layout(shapes=sun_vlines(sun))
     fig.update_layout(annotations=sun_annots(sun) + wind_annots)
@@ -790,6 +810,7 @@ def tides():
                            text_report=text,
                            is_fav=is_fav,
                            favs=favs,
+                           moon_phases=moon_phases,
                            ))
 
     if current_param != station_defaults['current']:

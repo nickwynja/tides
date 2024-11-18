@@ -280,10 +280,27 @@ select {
             </tbody>
         </table>
 
-        <h3>Station Details</h3>
+    <h3> Upcoming Moon Phases </h3>
+
+    <table>
+    {% for ph in moon_phases %}
+    <tr>
+        <td>{{ph['date'].strftime("%m/%d")}}</td>
+        <td>{{ph['phase']}}</td>
+    </tr>
+     {% endfor %}
+
+    </table>
+
+    </div>
+    <div class="row">
         {% set tc = tide_station['lng']|string + "," + tide_station['lat']|string %}
         {% set cc = current_station['lng']|string + "," + current_station['lat']|string %}
         {% set at = "pk.eyJ1Ijoibmlja3d5bmphIiwiYSI6ImNtMzh6ZWN0YzBrbXUybG9nYXhjdnFlc2cifQ.uUURdxJOZ72zXmM9oqvW7g" %}
+
+        <img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/800x500?padding=50&access_token={{at}}" />
+
+        <h3>Station Details</h3>
 
         <table>
             <tr>
@@ -311,9 +328,6 @@ select {
                 <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ current_station['lat'] }}&lng={{ current_station['lng'] }}&zoom=11&type=currentpredictions&id={{ current_station['id'] }}">View on map</td>
             </tr>
         </table>
-    </div>
-    <div class="row">
-        <img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/800x500?padding=50&access_token={{at}}" />
     </div>
 </div>
 

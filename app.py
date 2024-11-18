@@ -510,7 +510,7 @@ def tides():
     met_data = {
             'Water Temp': {},
             'Wind Speed': {},
-            'Wind Direction': {},
+            'Wind Dir': {},
             'Wind Gusts': {},
             'Air Temp': {},
             'Pressure': {},

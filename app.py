@@ -510,14 +510,14 @@ def tides():
     met_data = {
             'Water Temp': {},
             'Wind Speed': {},
-            'Wind Dir': {},
+            'Wind Direction': {},
             'Wind Gusts': {},
             'Air Temp': {},
             'Pressure': {},
             'Updated': {},
             }
 
-    for st in ['BRHC3','NWHC3','NLHC3','MTKN6']:
+    for st in ['BRHC3','NWHC3','MTKN6']:
 
         buoy_data = requests.get(
                 f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",

@@ -396,7 +396,7 @@ def tides():
         return resp
 
 
-    DAYS = 2
+    DAYS = 5
 
     tz = 'US/Eastern'
     EASTERN = pytz.timezone(tz)

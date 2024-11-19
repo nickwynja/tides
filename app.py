@@ -506,10 +506,10 @@ def tides():
 
     forecast = []
 
-    for idx, text in enumerate(forecast_text[:DAYS*2]):
+    for t, txt in zip(forecast_periods, forecast_text):
         forecast.append({
-                "when": forecast_periods[idx],
-                "text": text,
+                "when": t,
+                "text": txt,
                 })
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
@@ -535,7 +535,8 @@ def tides():
 
         db = pd.read_csv(
                 StringIO(buoy_data.text),
-                sep='\s+'
+                sep='\s+',
+                nrows=24
                 )
         db = db.replace('MM', np.nan)
         db = db.bfill()

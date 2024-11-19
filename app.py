@@ -40,8 +40,9 @@ if not app.debug:
     app.logger.setLevel(gunicorn_logger.level)
 
 
-DEBUG_CACHE_SOLUNAR = True
-CACHE_ENABLED = True if DEBUG_CACHE_SOLUNAR is True and app.debug else False
+DEBUG_CACHE_SOLUNAR = False
+## Should always be True if prod (app.debug = False)
+CACHE_ENABLED = False if DEBUG_CACHE_SOLUNAR is False and app.debug else True
 
 def sun_vlines(sun):
     vlines = []

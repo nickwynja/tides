@@ -40,7 +40,7 @@ if not app.debug:
     app.logger.setLevel(gunicorn_logger.level)
 
 
-DEBUG_CACHE_SOLUNAR = False
+DEBUG_CACHE_SOLUNAR = True
 ## Should always be True if prod (app.debug = False)
 CACHE_ENABLED = False if DEBUG_CACHE_SOLUNAR is False and app.debug else True
 
@@ -425,6 +425,7 @@ def tides():
     start_date = start_date_dt.strftime('%Y%m%d')
     end_date = end_date_dt.strftime('%Y%m%d')
     today = local_now.strftime('%Y-%m-%d')
+    fig = go.Figure()
 
     bbox = {
             "lat": [
@@ -491,6 +492,10 @@ def tides():
     lat = station_metadata['stations'][0]['lat']
     lon = station_metadata['stations'][0]['lng']
 
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+            'metadata collected'
+            )
+
     forecast_daily = requests.get(
             f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
             expire_after=seconds_until_hour(),
@@ -507,6 +512,9 @@ def tides():
                 "text": text,
                 })
 
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'forecast collected'
+                     )
 
     met_data = {
             'Water Temp': {},
@@ -518,11 +526,11 @@ def tides():
             'Updated': {},
             }
 
-    for st in ['BRHC3','NWHC3','MTKN6']:
+    for st in ['NWHC3','MTKN6']:
 
         buoy_data = requests.get(
                 f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",
-                expire_after=60*10,
+                expire_after=seconds_until_hour(),
                 )
 
         db = pd.read_csv(
@@ -543,6 +551,10 @@ def tides():
         met_data['Pressure'][st] = f"{bl['PRES']} hPa" if not pd.isnull(bl['PRES']) else "-"
         met_data['Air Temp'][st] = f"{c_to_f(bl['ATMP'])}&deg;F" if not pd.isnull(bl['ATMP']) else "-"
         met_data['Water Temp'][st] = f"{c_to_f(bl['WTMP'])}&deg;F" if not pd.isnull(bl['WTMP']) else "-"
+
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+            'buoy collected'
+                     )
 
     tides = requests.get(
             f"{NOAA_TC_API}?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={tide_station['id']}&time_zone=lst_ldt&units=english&interval=hilo&format=json",
@@ -568,6 +580,22 @@ def tides():
 
     tide_max = dt['Feet'].max()  # used in chart for max moon %
 
+    fig.add_trace(
+      go.Scatter(
+        x=dt['Date'], y=dt['Feet'],
+        text=dt['Time'],
+        hovertemplate = '%{y:.1f} ft' + '<br>%{x}',
+        mode='lines+markers+text',
+        textposition='top center', # Adjust text position
+        line_shape="spline",
+        name='Tide'
+      )
+    )
+
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'tides charted'
+                     )
+
     currents = requests.get(
             f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
             )
@@ -585,19 +613,6 @@ def tides():
     dc['Type'] = dc['Type'].replace(['flood'], 'max flood')
     dc['Type'] = dc['Type'].replace(['slack'], 'slack current')
 
-    fig = go.Figure()
-    fig.add_trace(
-      go.Scatter(
-        x=dt['Date'], y=dt['Feet'],
-        text=dt['Time'],
-        hovertemplate = '%{y:.1f} ft' + '<br>%{x}',
-        mode='lines+markers+text',
-        textposition='top center', # Adjust text position
-        line_shape="spline",
-        name='Tide'
-      )
-    )
-
     fig.add_trace(
         go.Scatter(
           x=dc['Date'], y=dc['Knots'],
@@ -610,6 +625,10 @@ def tides():
           name='Current'
         )
     )
+
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+        'currents charted'
+        )
 
     forecast_marine = requests.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
@@ -629,18 +648,30 @@ def tides():
             wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 
 
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'wind annotations'
+                     )
+
     sun = []
     for date in pd.date_range(start=start_date, end=end_date):
         sun.append(solar(date, lat, lon))
+
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'sun data calculated'
+                     )
+
+    fig.update_layout(shapes=sun_vlines(sun))
+    fig.update_layout(annotations=sun_annots(sun) + wind_annots)
+
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'sun and wind annotations added'
+                     )
 
     moon_events = lunar(start_date_dt, end_date_dt, lat, lon)
     moon_phases = get_moon_phases(
             start_date_dt,
             start_date_dt + pd.offsets.MonthEnd(2)
             )
-
-    fig.update_layout(shapes=sun_vlines(sun))
-    fig.update_layout(annotations=sun_annots(sun) + wind_annots)
 
     moon_data = []
 
@@ -684,6 +715,10 @@ def tides():
           name='Moon'
         )
     )
+
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'moon data charted'
+                     )
 
     fig.update_traces(textposition=improve_text_position(dc['Time']),
                       connectgaps=None)
@@ -737,6 +772,10 @@ def tides():
                 'displayModeBar': False,
                 })
 
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'figure updated and dumped'
+                     )
+
     dct = dc[dc['Date'].dt.strftime('%Y-%m-%d') == today]
     dtt = dt[dt['Date'].dt.strftime('%Y-%m-%d') == today]
     dd = pd.merge(dct, dtt,  how="outer", on=['Date', 'Type'])
@@ -774,6 +813,10 @@ def tides():
 
     text = sorted(text, key=lambda d: d['time'])
 
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'text report created'
+                     )
+
     resp = make_response(render_template('index.html', fig_html=fig_html,
                            current_station=current_station,
                            tide_station=tide_station,
@@ -801,7 +844,7 @@ def tides():
                                    separators=(',', ':')),
                     max_age=157784760)
 
-    app.logger.info(f"{(time.perf_counter()-timer_start):.2f} w/ solunar cache = {CACHE_ENABLED}")
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f} w/ solunar cache = {CACHE_ENABLED}")
 
     return resp
 

@@ -41,7 +41,7 @@ if not app.debug:
 
 
 DEBUG_CACHE_SOLUNAR = True
-DISABLE_CACHE = False if DEBUG_CACHE_SOLUNAR is True and app.debug else True
+CACHE_ENABLED = True if DEBUG_CACHE_SOLUNAR is True and app.debug else False
 
 def sun_vlines(sun):
     vlines = []
@@ -206,7 +206,7 @@ def deg_to_phase_intermediate(deg):
 def solar(date, lat, lon):
     key = cache_key(f"solar_{date}{lat}{lon}")
     cache = get_obj_from_cache(key)
-    if cache and not DISABLE_CACHE:
+    if cache and CACHE_ENABLED:
         return cache
 
 
@@ -240,7 +240,7 @@ def lunar(start_date, end_date, lat, lon):
 
     key = cache_key(f"lunar_{start_date}{lat}{lon}")
     cache = get_obj_from_cache(key)
-    if cache and not DISABLE_CACHE:
+    if cache and CACHE_ENABLED:
         return cache
 
     ts = load.timescale()
@@ -800,7 +800,7 @@ def tides():
                                    separators=(',', ':')),
                     max_age=157784760)
 
-    app.logger.info(f"resp time: {time.perf_counter()-timer_start} with solunar cache disabled = {DISABLE_CACHE}")
+    app.logger.info(f"{(time.perf_counter()-timer_start):.2f} w/ solunar cache = {CACHE_ENABLED}")
 
     return resp
 

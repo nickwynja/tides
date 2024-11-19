@@ -174,7 +174,7 @@ select {
 
 </style>
 
-<title>Surfcast</title>
+<title>Surfcast Info</title>
 </head>
 
 <body>
@@ -247,7 +247,7 @@ select {
         </details>
 
         <h3>WX</h3>
-        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}">Marine Forecast</a></p>
+        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">Marine Forecast</a></p>
         <table>
             {% for f in forecast %}
             <tr>
@@ -264,7 +264,7 @@ select {
                 <tr>
                     <th></th>
                     {% for station in met_data['Wind Speed'].keys() %}
-                    <th><a href="https://www.ndbc.noaa.gov/station_page.php?station={{station}}">{{ station }}</a></th>
+                    <th><a href="https://www.ndbc.noaa.gov/station_page.php?station={{station}}" target="_blank">{{ station }}</a></th>
                     {% endfor %}
                 </tr>
             </thead>
@@ -305,11 +305,11 @@ select {
         <table>
             <tr>
                 <td style="color: blue;">Tide:</td>
-                <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ tide_station['id'] }}"</a>{{ tide_station['name'] }}</td>
+                <td><a href="https://tidesandcurrents.noaa.gov/stationhome.html?id={{ tide_station['id'] }}" target="_blank">{{ tide_station['name'] }}</a></td>
             </tr>
             <tr>
                 <td></td>
-                <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ tide_station['lat'] }}&lng={{ tide_station['lng'] }}&zoom=11&type=tidepredictions&id={{ tide_station['id'] }}">View on map</td>
+                <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ tide_station['lat'] }}&lng={{ tide_station['lng'] }}&zoom=11&type=tidepredictions&id={{ tide_station['id'] }}" target="_blank">View on map</td>
             </tr>
             <tr>
                 <td></td>
@@ -317,7 +317,7 @@ select {
             </tr>
             <tr>
                 <td style="color: red;">Current:</td>
-                <td><a href="https://tidesandcurrents.noaa.gov/noaacurrents/predictions.html?id={{ current_station['id'] }}_1"</a>{{ current_station['name'] }}</td>
+                <td><a href="https://tidesandcurrents.noaa.gov/noaacurrents/predictions.html?id={{ current_station['id'] }}_1" target="_blank">{{ current_station['name'] }}</a></td>
             </tr>
             <tr>
                 <td></td>
@@ -325,7 +325,7 @@ select {
             </tr>
             <tr>
                 <td></td>
-                <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ current_station['lat'] }}&lng={{ current_station['lng'] }}&zoom=11&type=currentpredictions&id={{ current_station['id'] }}">View on map</td>
+                <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ current_station['lat'] }}&lng={{ current_station['lng'] }}&zoom=11&type=currentpredictions&id={{ current_station['id'] }}" target="_blank">View on map</a></td>
             </tr>
         </table>
     </div>

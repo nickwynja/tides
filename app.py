@@ -450,11 +450,11 @@ def tides():
             station_type="tidepredictions"
             )
 
-    local_met_stations = get_stations_from_bbox(
-            lat_coords=bbox['lat'],
-            lon_coords=bbox['lon'],
-            station_type="met"
-            )
+    # local_met_stations = get_stations_from_bbox(
+    #         lat_coords=bbox['lat'],
+    #         lon_coords=bbox['lon'],
+    #         station_type="met"
+    #         )
 
     current_cookie = request.cookies.get('current', station_defaults['current'])
     tide_cookie = request.cookies.get('tide', station_defaults['tide'])
@@ -477,7 +477,7 @@ def tides():
 
     current_station = [x for x in local_current_stations if x['id'] == current_param][0]
     tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
-    met_station = [x for x in local_met_stations if x['id'] == met_param][0]
+    # met_station = [x for x in local_met_stations if x['id'] == met_param][0]
 
     favs = json.loads(request.cookies.get('favs', '[]'))
     fav_string = f"{tide_param}:{current_param}"
@@ -821,10 +821,10 @@ def tides():
     resp = make_response(render_template('index.html', fig_html=fig_html,
                            current_station=current_station,
                            tide_station=tide_station,
-                           met_station=met_station,
+                           # met_station=met_station,
                            local_current_stations=local_current_stations,
                            local_tide_stations=local_tide_stations,
-                           local_met_stations=local_met_stations,
+                           # local_met_stations=local_met_stations,
                            forecast=forecast,
                            met_data=met_data,
                            tide_offset=tide_offset,

@@ -853,15 +853,15 @@ def tides():
 @app.route('/manifest.json')
 def manifest():
     return jsonify({
-        "short_name": "Forecast",
-        "name": "Tide, Current, and Wind Forecast",
+        "short_name": "Surfcast",
+        "name": "Surfcast",
         "id": "/",
         "start_url": "/",
         "background_color": "#000000",
         "display": "fullscreen",
         "scope": "/",
         "theme_color": "#000000",
-        "description": "Weather forecast information",
+        "description": "Tide, current, wind and moon info for the surfcaster.",
         "icons": [
             {
                 "src": "/static/icon.png",

@@ -257,11 +257,11 @@ select {
             </table>
         </details>
 
-        <h3>WX</h3>
+        <h3>Weather Forecast</h3>
         {% if current_station %}
-        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">Marine Forecast ({{cc}})</a></p>
+        <p>For <a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">{{cc}}</a>:</p>
         {% else %}
-        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ tide_station['lat'] }}&lon={{ tide_station['lng'] }}" target="_blank">Marine Forecast ({{tc}})</a></p>
+        <p>For <a href="https://marine.weather.gov/MapClick.php?lat={{ tide_station['lat'] }}&lon={{ tide_station['lng'] }}" target="_blank">{{tc}}</a>:</p>
         {% endif %}
         <table>
             {% for f in forecast %}

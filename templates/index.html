@@ -177,6 +177,11 @@ select {
 <title>Surfcast Info</title>
 </head>
 
+{% set tc = tide_station['lng']|round(4)|string + ", " + tide_station['lat']|round(4)|string %}
+{% if current_station %}
+{% set cc = current_station['lng']|round(4)|string + ", " + current_station['lat']|round(4)|string %}
+{% endif %}
+
 <body>
 
 {{ fig_html | safe }}
@@ -189,8 +194,13 @@ select {
 {% set cf = f.split(":")[1] %}
 
 
-<a href={{ url_for('tides', current=cf, tide=tf) }}>{{ tf }}:{{ cf }}</a>
 
+
+{% if cf %}
+    <a href={{ url_for('tides', tide=tf, current=cf) }}>{{ f }}</a>
+{% else %}
+    <a href={{ url_for('tides', tide=tf, current=cf) }}>{{ tf}}</a>
+{% endif %}
 {% endfor %}
 </div>
 
@@ -206,6 +216,7 @@ select {
     <div class="row">
       <label for="current">Current:</label>
       <select name="current" id="current">
+          <option value="None" {{'selected' if current_station == "None"}} >No current station</option>
           {% for s in local_current_stations | selectattr("currbin", "equalto", 1) | sort(attribute='name') %}
           <option value="{{s.id}}" {{'selected' if current_station['id'] == s['id']}} >{{ s.name }}</option>
           {% endfor %}
@@ -247,7 +258,11 @@ select {
         </details>
 
         <h3>WX</h3>
-        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">Marine Forecast</a></p>
+        {% if current_station %}
+        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">Marine Forecast ({{cc}})</a></p>
+        {% else %}
+        <p><a href="https://marine.weather.gov/MapClick.php?lat={{ tide_station['lat'] }}&lon={{ tide_station['lng'] }}" target="_blank">Marine Forecast ({{tc}})</a></p>
+        {% endif %}
         <table>
             {% for f in forecast %}
             <tr>
@@ -294,11 +309,13 @@ select {
 
     </div>
     <div class="row">
-        {% set tc = tide_station['lng']|string + "," + tide_station['lat']|string %}
-        {% set cc = current_station['lng']|string + "," + current_station['lat']|string %}
         {% set at = "pk.eyJ1Ijoibmlja3d5bmphIiwiYSI6ImNtMzh6ZWN0YzBrbXUybG9nYXhjdnFlc2cifQ.uUURdxJOZ72zXmM9oqvW7g" %}
 
-        <img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc}}),pin-s+ff0000({{cc}})/auto/800x500?padding=50&access_token={{at}}" />
+        {% if current_station %}
+        <img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc|replace(" ", "")}}),pin-s+ff0000({{cc|replace(" ", "")}})/auto/800x500?padding=50&access_token={{at}}" />
+        {% else %}
+        <img id="map" src="https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/pin-s+1e00ff({{tc|replace(" ", "")}})/{{tc|replace(" ", "")}},13,0/800x500?access_token={{at}}" />
+        {% endif %}
 
         <h3>Station Details</h3>
 
@@ -313,20 +330,22 @@ select {
             </tr>
             <tr>
                 <td></td>
-                <td>{{ tide_station['lat'] }}, {{ tide_station['lng'] }}</td>
+                <td>{{ tc }}</td>
             </tr>
+            {% if current_station %}
             <tr>
                 <td style="color: red;">Current:</td>
                 <td><a href="https://tidesandcurrents.noaa.gov/noaacurrents/predictions.html?id={{ current_station['id'] }}_1" target="_blank">{{ current_station['name'] }}</a></td>
             </tr>
             <tr>
                 <td></td>
-                <td>{{ current_station['lat'] }}, {{ current_station['lng'] }}</td>
+                <td>{{ cc }}</td>
             </tr>
             <tr>
                 <td></td>
                 <td><a href="https://tidesandcurrents.noaa.gov/map/index.html?lat={{ current_station['lat'] }}&lng={{ current_station['lng'] }}&zoom=11&type=currentpredictions&id={{ current_station['id'] }}" target="_blank">View on map</a></td>
             </tr>
+            {% endif %}
         </table>
     </div>
 </div>

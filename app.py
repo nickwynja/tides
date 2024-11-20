@@ -379,7 +379,7 @@ def tides():
         fav = request.form.get('fav', None)
         fav_state = request.form.get('fav_state')
 
-        fav_string = f"{tide_param}:{current_param}"
+        fav_string = f"{tide_param}:{current_param}" if current_param != "None" else tide_param
 
         if fav and fav != fav_state:
             update_fav = True
@@ -475,16 +475,22 @@ def tides():
     if tide_param != 0:
         station_offsets[f"{tide_param}_{current_param}"] = tide_offset
 
-    current_station = [x for x in local_current_stations if x['id'] == current_param][0]
+    try:
+        current_station = [x for x in local_current_stations if x['id'] == current_param][0]
+    except IndexError as e:
+        current_station = None
     tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
     # met_station = [x for x in local_met_stations if x['id'] == met_param][0]
 
     favs = json.loads(request.cookies.get('favs', '[]'))
-    fav_string = f"{tide_param}:{current_param}"
+    fav_string = f"{tide_param}:{current_param}" if current_station is not None else tide_param
     is_fav = True if fav_string in favs else False
 
+
+    station_for_metadata = current_station if current_station is not None else tide_station
+
     station_metadata = requests.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{current_station['id']}.json",
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station_for_metadata['id']}.json",
             )
 
     station_metadata = station_metadata.json()
@@ -597,39 +603,45 @@ def tides():
                      'tides charted'
                      )
 
-    currents = requests.get(
-            f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
+    if current_station is not None:
+
+        currents = requests.get(
+                f"{NOAA_TC_API}?product=currents_predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station={current_station['id']}&time_zone=lst_ldt&units=english&interval=MAX_SLACK&format=json",
+                )
+
+        dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])
+        dc = dc.rename(columns={
+            'Time': 'Date',
+            'Velocity_Major': 'Knots'
+            })
+
+        dc['Date'] = pd.to_datetime(dc['Date'])
+        dc['Time'] = dc['Date'].dt.strftime("%H:%M")
+        dc['Event'] = dc.apply(until_next_event, df=dc, axis=1)
+        dc['Type'] = dc['Type'].replace(['ebb'], 'max ebb')
+        dc['Type'] = dc['Type'].replace(['flood'], 'max flood')
+        dc['Type'] = dc['Type'].replace(['slack'], 'slack current')
+
+        fig.add_trace(
+            go.Scatter(
+              x=dc['Date'], y=dc['Knots'],
+              text=dc['Event'],
+              texttemplate=dc['Time'],
+              hovertemplate = "%{text}",
+              mode='lines+markers',
+              textposition='top center', # Adjust text position
+              line_shape="spline",
+              name='Current'
             )
-
-    dc = pd.DataFrame.from_dict(currents.json()['current_predictions']['cp'])
-    dc = dc.rename(columns={
-        'Time': 'Date',
-        'Velocity_Major': 'Knots'
-        })
-
-    dc['Date'] = pd.to_datetime(dc['Date'])
-    dc['Time'] = dc['Date'].dt.strftime("%H:%M")
-    dc['Event'] = dc.apply(until_next_event, df=dc, axis=1)
-    dc['Type'] = dc['Type'].replace(['ebb'], 'max ebb')
-    dc['Type'] = dc['Type'].replace(['flood'], 'max flood')
-    dc['Type'] = dc['Type'].replace(['slack'], 'slack current')
-
-    fig.add_trace(
-        go.Scatter(
-          x=dc['Date'], y=dc['Knots'],
-          text=dc['Event'],
-          texttemplate=dc['Time'],
-          hovertemplate = "%{text}",
-          mode='lines+markers',
-          textposition='top center', # Adjust text position
-          line_shape="spline",
-          name='Current'
         )
-    )
 
-    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
-        'currents charted'
-        )
+        fig.update_traces(
+                textposition=improve_text_position(dc['Time']),
+                )
+
+        app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+            'currents charted'
+            )
 
     forecast_marine = requests.get(
             f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
@@ -638,16 +650,20 @@ def tides():
 
     tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
     root = tree.getroot()
-    times = root.findall('.//start-valid-time')
-    wind_speeds = root.findall('.//wind-speed[@type="sustained"]/value')
-    wind_dir = root.findall('.//direction[@type="wind"]/value')
-    waves = root.findall('.//waves[@type="significant"]/value')
+    times = [x.text for x in root.findall('.//start-valid-time')]
+    wind_speeds = [x.text for x in root.findall('.//wind-speed[@type="sustained"]/value')]
+    wind_dir = [x.text for x in root.findall('.//direction[@type="wind"]/value')]
+    waves = [x.text for x in root.findall('.//waves[@type="significant"]/value')]
     wind_annots = []
 
-    for idx,t in enumerate(times[:24]):
-            cond = f"{deg_to_compass(wind_dir[idx].text)}<br>{wind_speeds[idx].text}kt<br>{waves[idx].text}'"
-            wind_annots = wind_annots + [dict(x=t.text, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
-
+    if waves:
+        for t, ws, wd, wv in zip(times, wind_speeds, wind_dir, waves):
+            cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
+            wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
+    else:
+        for t, ws, wd in zip(times, wind_speeds, wind_dir):
+            cond = f"{deg_to_compass(wd)}<br>{ws} mph"
+            wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
                      'wind annotations'
@@ -721,8 +737,9 @@ def tides():
                      'moon data charted'
                      )
 
-    fig.update_traces(textposition=improve_text_position(dc['Time']),
-                      connectgaps=None)
+    fig.update_traces(
+            connectgaps=None,
+            )
 
     fig.update_yaxes(
      fixedrange = True,
@@ -777,9 +794,13 @@ def tides():
                      'figure updated and dumped'
                      )
 
-    dct = dc[dc['Date'].dt.strftime('%Y-%m-%d') == today]
+
     dtt = dt[dt['Date'].dt.strftime('%Y-%m-%d') == today]
-    dd = pd.merge(dct, dtt,  how="outer", on=['Date', 'Type'])
+    try:
+        dct = dc[dc['Date'].dt.strftime('%Y-%m-%d') == today]
+        dd = pd.merge(dct, dtt,  how="outer", on=['Date', 'Type'])
+    except NameError as e:
+        dd = dtt
 
     moon_rises = [x for x in moon_data if x['phen'] == "rise"]
     moon_set = [x for x in moon_data if x['phen'] == "set"]

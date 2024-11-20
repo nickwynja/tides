@@ -259,9 +259,10 @@ select {
 
         <h3>Weather Forecast</h3>
         {% if current_station %}
-        <p>For <a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">{{cc}}</a>:</p>
+        {% set name = current_station['name'].split(',')[0] %}
+        <p>At {{name}}: <a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">({{ tc }})</a></p>
         {% else %}
-        <p>For <a href="https://marine.weather.gov/MapClick.php?lat={{ tide_station['lat'] }}&lon={{ tide_station['lng'] }}" target="_blank">{{tc}}</a>:</p>
+        <p>For <a href="https://marine.weather.gov/MapClick.php?lat={{ tide_station['lat'] }}&lon={{ tide_station['lng'] }}" target="_blank">{{tide_station['name']}}</a>:</p>
         {% endif %}
         <table>
             {% for f in forecast %}

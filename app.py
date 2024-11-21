@@ -521,7 +521,7 @@ def tides():
                 h = h['properties']
                 hazards.append({
                         "effective": pd.to_datetime(h['effective']),
-                        "ends": h['ends'],
+                        "ends": pd.to_datetime(h['ends']),
                         "expires": pd.to_datetime(h['expires']),
                         "event": h['event'],
                         "description": h['description'],

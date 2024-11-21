@@ -507,6 +507,26 @@ def tides():
             expire_after=seconds_until_hour(),
             )
 
+    hazards = []
+    zone = forecast_daily.json()['location']['zone']
+    if 'hazard' in forecast_daily.json()['data']:
+
+        hazards_data = requests.get(
+                f"https://api.weather.gov/alerts/active?zone={zone}",
+                expire_after=seconds_until_hour(),
+                )
+
+        for h in hazards_data.json()['features']:
+            if 'properties' in h:
+                h = h['properties']
+                hazards.append({
+                        "effective": pd.to_datetime(h['effective']),
+                        "ends": h['ends'],
+                        "expires": pd.to_datetime(h['expires']),
+                        "event": h['event'],
+                        "description": h['description'],
+                        })
+
     forecast_periods = forecast_daily.json()['time']['startPeriodName']
     forecast_text = forecast_daily.json()['data']['text']
 
@@ -658,12 +678,14 @@ def tides():
 
     if waves:
         for t, ws, wd, wv in zip(times, wind_speeds, wind_dir, waves):
-            cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
-            wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
+            if ws is not None:
+                cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
+                wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
     else:
         for t, ws, wd in zip(times, wind_speeds, wind_dir):
-            cond = f"{deg_to_compass(wd)}<br>{ws} mph"
-            wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
+            if ws is not None:
+                cond = f"{deg_to_compass(wd)}<br>{ws} mph"
+                wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
                      'wind annotations'
@@ -840,20 +862,21 @@ def tides():
                      )
 
     resp = make_response(render_template('index.html', fig_html=fig_html,
-                           current_station=current_station,
-                           tide_station=tide_station,
-                           # met_station=met_station,
-                           local_current_stations=local_current_stations,
-                           local_tide_stations=local_tide_stations,
-                           # local_met_stations=local_met_stations,
-                           forecast=forecast,
-                           met_data=met_data,
-                           tide_offset=tide_offset,
-                           text_report=text,
-                           is_fav=is_fav,
-                           favs=favs,
-                           moon_phases=moon_phases,
-                           ))
+                                         current_station=current_station,
+                                         tide_station=tide_station,
+                                         # met_station=met_station,
+                                         local_current_stations=local_current_stations,
+                                         local_tide_stations=local_tide_stations,
+                                         # local_met_stations=local_met_stations,
+                                         forecast=forecast,
+                                         met_data=met_data,
+                                         tide_offset=tide_offset,
+                                         text_report=text,
+                                         is_fav=is_fav,
+                                         favs=favs,
+                                         moon_phases=moon_phases,
+                                         hazards=hazards,
+                                         ))
 
     if current_param != station_defaults['current']:
         resp.set_cookie('current', current_param, max_age=157784760)

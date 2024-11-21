@@ -48,7 +48,7 @@ document.addEventListener("turbo:load", () => {
 
         var annotations = [];
 
-        if ((end - start) > 64800) {
+        if ((end - start) > (64800 * 1.5)) {
             myPlot.layout.annotations.forEach(item => {
                 if (item.name == "wind") {
                     item.visible = false;
@@ -173,6 +173,15 @@ select {
     margin: 10px 0 10px 0;
 }
 
+.hazard {
+    margin-bottom: 16px;
+}
+
+.hazard summary {
+    color: orange;
+}
+
+
 </style>
 
 <title>Surfcast Info</title>
@@ -245,6 +254,21 @@ select {
 
 <div class="flex details">
     <div class="row">
+        {% if hazards %}
+        <div class='hazard'>
+        {% for h in hazards %}
+        <details>
+            <summary>{{h['event']}}</summary>
+            <pre>
+IN EFFECT: {{h['effective'].strftime("%a %H:%M")}}
+
+EXPIRES: {{h['expires'].strftime("%a %H:%M")}}
+
+{{h['description']}}</pre>
+        </details>
+        {% endfor %}
+        {% endif %}
+        </div>
         <details>
             <summary>Today's text report</summary>
             <br>

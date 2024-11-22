@@ -44,6 +44,94 @@ DEBUG_CACHE_SOLUNAR = True
 ## Should always be True if prod (app.debug = False)
 CACHE_ENABLED = False if DEBUG_CACHE_SOLUNAR is False and app.debug else True
 
+def get_current_stations_by_group():
+    current_station_group = requests.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/current_geo_groups.json",
+            )
+
+    # csg = pd.DataFrame.from_dict(
+    #         current_station_group.json()['currPredGeoGroupList'],
+    #         orient='columns')
+    # print(csg.query('level == "1"'))
+    # print(csg.query('parentGroupID == "458"'))
+
+    current_stations = {
+            "0": [],
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "5": [],
+            }
+
+    for st in current_station_group.json()['currPredGeoGroupList']:
+        current_stations[st['level']].append(st)
+
+    # print([x for x in current_stations["4"]])
+    # Groups
+
+    stations_by_group = {}
+
+    for grp in current_stations["3"]:
+            stations_by_group[grp['groupID']] = {
+                "meta": grp,
+                "stations": []
+                }
+
+    for st in current_stations['4']:
+        if st['stationID'] is not None:  # look into whether bin 1 is what I want
+            stations_by_group[st['parentGroupID']]['stations'].append(st)
+
+    return stations_by_group
+
+def get_station_by_id(id):
+    station = requests.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{id}.json",
+            )
+    return station.json()['stations'][0]
+
+def get_tide_stations_by_group():
+    tide_station_state = requests.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=5",
+            )
+
+    st = tide_station_state.json()
+
+    tide_station_group = requests.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=6",
+            )
+
+    # print(st)
+    grp = tide_station_group.json()['geoGroupList']
+
+    tide_stations_by_group = {}
+
+    for g in grp:
+        tide_stations_by_group[g['geoGroupId']] = {
+            'meta': g,
+            'stations': [],
+            }
+
+
+    _child_id = 1407
+
+    tide_station_children = requests.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups/{_child_id}/children.json",
+            )
+
+    st = tide_station_children.json()['stationList']
+
+    for s in st:
+        try:
+            tide_stations_by_group[s['parentGeoGroupId']]['stations'].append(
+                    s
+                    )
+        except KeyError as e:
+            pass
+
+    return tide_stations_by_group
+
+
 def sun_vlines(sun):
     vlines = []
     for s in sun:
@@ -170,6 +258,23 @@ def get_stations_from_bbox(lat_coords, lon_coords, station_type=None):
         if lon_coords[0] < station_dict["lng"] < lon_coords[1]:
             if lat_coords[0] < station_dict["lat"] < lat_coords[1]:
                 station_list.append(station_dict)
+
+    return station_list
+
+def get_stations_details_from_group(ids, station_type=None):
+    """ from https://github.com/GClunies/noaa_coops"""
+    station_list = []
+    if station_type:
+        data_url = f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type={station_type}"
+    else:
+        data_url = "https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json"
+    response = requests.get(data_url)
+    json_dict = response.json()
+
+    # Find stations in bounding box
+    for station_dict in json_dict["stations"]:
+        if station_dict['id'] in ids:
+            station_list.append(station_dict)
 
     return station_list
 
@@ -438,23 +543,8 @@ def tides():
                 ]
             }
 
-    local_current_stations = get_stations_from_bbox(
-            lat_coords=bbox['lat'],
-            lon_coords=bbox['lon'],
-            station_type="currentpredictions"
-            )
-
-    local_tide_stations = get_stations_from_bbox(
-            lat_coords=bbox['lat'],
-            lon_coords=bbox['lon'],
-            station_type="tidepredictions"
-            )
-
-    # local_met_stations = get_stations_from_bbox(
-    #         lat_coords=bbox['lat'],
-    #         lon_coords=bbox['lon'],
-    #         station_type="met"
-    #         )
+    current_station_group = get_current_stations_by_group()
+    tide_station_group = get_tide_stations_by_group()
 
     current_cookie = request.cookies.get('current', station_defaults['current'])
     tide_cookie = request.cookies.get('tide', station_defaults['tide'])
@@ -476,11 +566,14 @@ def tides():
         station_offsets[f"{tide_param}_{current_param}"] = tide_offset
 
     try:
-        current_station = [x for x in local_current_stations if x['id'] == current_param][0]
+        current_station = get_station_by_id(current_param)
     except IndexError as e:
         current_station = None
-    tide_station = [x for x in local_tide_stations if x['id'] == tide_param][0]
-    # met_station = [x for x in local_met_stations if x['id'] == met_param][0]
+
+    try:
+        tide_station = get_station_by_id(tide_param)
+    except IndexError as e:
+        current_station = None
 
     favs = json.loads(request.cookies.get('favs', '[]'))
     fav_string = f"{tide_param}:{current_param}" if current_station is not None else tide_param
@@ -864,10 +957,8 @@ def tides():
     resp = make_response(render_template('index.html', fig_html=fig_html,
                                          current_station=current_station,
                                          tide_station=tide_station,
-                                         # met_station=met_station,
-                                         local_current_stations=local_current_stations,
-                                         local_tide_stations=local_tide_stations,
-                                         # local_met_stations=local_met_stations,
+                                         current_station_group=current_station_group,
+                                         tide_station_group=tide_station_group,
                                          forecast=forecast,
                                          met_data=met_data,
                                          tide_offset=tide_offset,

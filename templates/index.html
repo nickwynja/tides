@@ -218,17 +218,28 @@ select {
     <div class="row">
         <label for="tide">Tide:</label>
         <select name="tide" id="tide">
-            {% for s in local_tide_stations | sort(attribute='name') %}
-            <option value="{{s.id}}" {{'selected' if tide_station['id'] == s['id']}} >{{ s.name }}</option>
-            {% endfor %}
+          {% for k,v in tide_station_group.items() %}
+          {% if v['stations'] != [] %}
+              <optgroup label="{{v['meta']['geoGroupName']}}">
+                  {% for s in v['stations'] | sort(attribute='geoGroupName') | unique(attribute="geoGroupName") %}
+                  <option value="{{s.stationId}}" {{'selected' if tide_station['id'] == s['stationId']}} >{{ s.geoGroupName }}</option>
+                  {% endfor %}
+                  {% endif %}
+          {% endfor %}
+
         </select>
     </div>
     <div class="row">
       <label for="current">Current:</label>
       <select name="current" id="current">
           <option value="None" {{'selected' if current_station == "None"}} >No current station</option>
-          {% for s in local_current_stations | selectattr("currbin", "equalto", 1) | sort(attribute='name') %}
-          <option value="{{s.id}}" {{'selected' if current_station['id'] == s['id']}} >{{ s.name }}</option>
+          {% for k,v in current_station_group.items() %}
+              {% if v['meta']['parentGroupID'] == "458" %}
+              <optgroup label="{{v['meta']['groupName']}}">
+                  {% for s in v['stations'] | sort(attribute='stationName') | unique(attribute="stationName") %}
+                  <option value="{{s.stationID}}" {{'selected' if current_station['id'] == s['stationID']}} >{{ s.stationName }}</option>
+                  {% endfor %}
+              {% endif %}
           {% endfor %}
       </select>
     </div>

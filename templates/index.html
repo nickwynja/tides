@@ -261,8 +261,6 @@ select {
     </div>
 </form>
 
-<div class="flex details">
-    <div class="row">
         {% if hazards %}
         <div class='hazard'>
         {% for h in hazards %}
@@ -293,6 +291,8 @@ ENDS: {{h['ends'].strftime("%a %H:%M")}}
         </details>
         </div>
 
+<div class="flex details">
+    <div class="row">
         <h3>Weather Forecast</h3>
         {% if current_station %}
         {% set name = current_station['name'].split(',')[0] %}

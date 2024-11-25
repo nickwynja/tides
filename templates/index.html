@@ -220,7 +220,7 @@ select {
         <select name="tide" id="tide">
           {% for k,v in tide_station_group.items() %}
           {% if v['stations'] != [] %}
-              <optgroup label="{{v['meta']['geoGroupName']}}">
+              <optgroup label="{{ v['meta']['geoGroupName'] }}">
                   {% for s in v['stations'] | sort(attribute='geoGroupName') | unique(attribute="geoGroupName") %}
                   <option value="{{s.stationId}}" {{'selected' if tide_station['id'] == s['stationId']}} >{{ s.geoGroupName }}</option>
                   {% endfor %}
@@ -241,14 +241,6 @@ select {
           {% endfor %}
       </select>
     </div>
-    <!-- <div class="row"> -->
-    <!--   <label for="met">Met:</label> -->
-    <!--   <select name="met" id="met" hidden> -->
-    <!--       {% for s in local_met_stations | sort(attribute='name') %} -->
-    <!--       <option value="{{s.id}}" {{'selected' if met_station['id'] == s['id']}} >{{ s.name }}</option> -->
-    <!--       {% endfor %} -->
-    <!--   </select> -->
-    <!-- </div> -->
     <div class="row">
       <input type="number" placeholder="+/-" name="offset" id="offset"/>
       {% if tide_offset != 0 %}
@@ -386,6 +378,20 @@ ENDS: {{h['ends'].strftime("%a %H:%M")}}
         </table>
     </div>
 </div>
+
+<!-- <form action="/" method="POST" class="flex"> -->
+<!--     <div class="row"> -->
+<!--         <label for="region">State:</label> -->
+<!--         <select name="region" id="region"> -->
+<!--             {% for s in states %} -->
+<!--             <option value="{{s}}" {{'selected' if state == s }} >{{ s }}</option> -->
+<!--             {% endfor %} -->
+<!--         </select> -->
+<!--     </div> -->
+<!--     <div class="row"> -->
+<!--         <button type="submit"/>Change region</button> -->
+<!--     </div> -->
+<!-- </form> -->
 
 </body>
 </html>

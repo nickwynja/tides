@@ -88,32 +88,29 @@ def get_states_by_region(region=444):
 
     return [x['stationName'] for x in states.json()['currPredGeoGroupList'] if x['parentGroupID'] == region]
 
-def get_station_by_id(id):
-    station = requests.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{id}.json",
-            )
+def get_station_by_id(station_id):
+    if station_id == "" or station_id is None:
+        return None
+
+    try:
+        station = requests.get(
+                f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station_id}.json",
+                )
+
+        station.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        return None
+
     return station.json()['stations'][0]
 
 def get_tide_stations_by_group(region_filter):
+    tide_stations_by_group = {}
+
     tide_station_state = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=5",
             )
 
     st = tide_station_state.json()['geoGroupList']
-
-    tide_station_group = requests.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=6",
-            )
-
-    grp = tide_station_group.json()['geoGroupList']
-
-    tide_stations_by_group = {}
-
-    for g in grp:
-        tide_stations_by_group[g['geoGroupId']] = {
-            'meta': g,
-            'stations': [],
-            }
 
     region_id = [x['geoGroupId'] for x in st if x['geoGroupName'] == region_filter][0]
 
@@ -123,13 +120,21 @@ def get_tide_stations_by_group(region_filter):
 
     st = tide_station_children.json()['stationList']
 
+    for g in st:
+        if g['geoGroupId'] != region_id:
+            tide_stations_by_group[g['geoGroupId']] = {
+                'meta': g,
+                'stations': [],
+                }
+
     for s in st:
-        try:
-            tide_stations_by_group[s['parentGeoGroupId']]['stations'].append(
-                    s
-                    )
-        except KeyError as e:
-            pass
+        if s['stationId'] is not None:  # look into whether bin 1 is what I want
+            try:
+                tide_stations_by_group[s['parentGeoGroupId']]['stations'].append(
+                        s
+                        )
+            except KeyError as e:
+                pass
 
     return tide_stations_by_group
 
@@ -472,6 +477,7 @@ def tides():
     timer_start = time.perf_counter()
 
     station_defaults = {
+            'state': 'New York',
             'tide': '8510560',
             'current': 'ACT2401',
             'met': "8510560",
@@ -485,6 +491,7 @@ def tides():
         offset_param = request.form.get('offset')
         fav = request.form.get('fav', None)
         fav_state = request.form.get('fav_state')
+        region = request.form.get('region', None)
 
         fav_string = f"{tide_param}:{current_param}" if current_param != "None" else tide_param
 
@@ -505,6 +512,13 @@ def tides():
                                               )
                                       )
                              )
+
+        if region:
+            resp.set_cookie('region',
+                            region,
+                            max_age=157784760)
+
+        #@TODO: fav based on region
 
         if update_fav:
             favs = json.loads(request.cookies.get('favs', '[]'))
@@ -545,20 +559,32 @@ def tides():
                 ]
             }
 
-    state = "New York"
-    states = get_states_by_region('444')
+    states = get_states_by_region('444')  # East Coast
+    state = request.cookies.get('region', station_defaults['state'])
 
     current_station_group = get_current_stations_by_group(state)
+
     tide_station_group = get_tide_stations_by_group(state)
 
-    current_cookie = request.cookies.get('current', station_defaults['current'])
-    tide_cookie = request.cookies.get('tide', station_defaults['tide'])
+    # picks one from the tide_station_group if no cookie
+    tide_cookie = request.cookies.get('tide',
+                                      tide_station_group[next(iter(tide_station_group))]['stations'][0]['stationId']
+                                      )
+
+    current_cookie = request.cookies.get('current',
+                                         None
+                                         )
 
     station_offsets = json.loads(request.cookies.get('station_offsets', '{}'))
 
     current_param = request.args.get('current', current_cookie )
     tide_param = request.args.get('tide', tide_cookie)
     met_param = request.args.get('met', station_defaults['met'])
+
+    # if tide_cookie:
+    #     tide_cookie = json.loads(tide_cookie)
+    # else:
+    #     tide_cookie = {state: tide_param}
 
     offset_param = (request.args.get('offset')
                     if request.args.get('offset') != None else
@@ -570,15 +596,9 @@ def tides():
     if tide_param != 0:
         station_offsets[f"{tide_param}_{current_param}"] = tide_offset
 
-    try:
-        current_station = get_station_by_id(current_param)
-    except IndexError as e:
-        current_station = None
 
-    try:
-        tide_station = get_station_by_id(tide_param)
-    except IndexError as e:
-        current_station = None
+    current_station = get_station_by_id(current_param)
+    tide_station = get_station_by_id(tide_param)
 
     favs = json.loads(request.cookies.get('favs', '[]'))
     fav_string = f"{tide_param}:{current_param}" if current_station is not None else tide_param
@@ -650,6 +670,8 @@ def tides():
             'Updated': {},
             }
 
+
+    #@ TODO: dynamic based on region
     for st in ['NWHC3','MTKN6']:
 
         buoy_data = requests.get(
@@ -972,13 +994,24 @@ def tides():
                                          favs=favs,
                                          moon_phases=moon_phases,
                                          hazards=hazards,
+                                         states=states,
+                                         state=state,
                                          ))
 
-    if current_param != station_defaults['current']:
-        resp.set_cookie('current', current_param, max_age=157784760)
 
-    if tide_param != station_defaults['tide']:
-        resp.set_cookie('tide', tide_param, max_age=157784760)
+    #@ TODO: cookie based on region
+
+    # if current_param != station_defaults['current']:
+    #     resp.set_cookie('current',
+    #                     json.dumps(current_cookie,
+    #                                separators=(',', ':')),
+    #                     max_age=157784760)
+
+    # if tide_param != station_defaults['tide']:
+    #     resp.set_cookie('tide',
+    #                     json.dumps(tide_cookie,
+    #                                separators=(',', ':')),
+    #                     max_age=157784760)
 
     resp.set_cookie('station_offsets',
                         json.dumps(station_offsets,

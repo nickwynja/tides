@@ -44,16 +44,10 @@ DEBUG_CACHE_SOLUNAR = True
 ## Should always be True if prod (app.debug = False)
 CACHE_ENABLED = False if DEBUG_CACHE_SOLUNAR is False and app.debug else True
 
-def get_current_stations_by_group():
+def get_current_stations_by_group(region_filter):
     current_station_group = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/current_geo_groups.json",
             )
-
-    # csg = pd.DataFrame.from_dict(
-    #         current_station_group.json()['currPredGeoGroupList'],
-    #         orient='columns')
-    # print(csg.query('level == "1"'))
-    # print(csg.query('parentGroupID == "458"'))
 
     current_stations = {
             "0": [],
@@ -67,22 +61,32 @@ def get_current_stations_by_group():
     for st in current_station_group.json()['currPredGeoGroupList']:
         current_stations[st['level']].append(st)
 
-    # print([x for x in current_stations["4"]])
-    # Groups
-
     stations_by_group = {}
 
+    region_id = [x['groupID'] for x in current_stations['2'] if x['stationName'] == region_filter][0]
+
     for grp in current_stations["3"]:
-            stations_by_group[grp['groupID']] = {
-                "meta": grp,
-                "stations": []
-                }
+            if grp['parentGroupID'] == region_id:
+                stations_by_group[grp['groupID']] = {
+                    "meta": grp,
+                    "stations": []
+                    }
 
     for st in current_stations['4']:
         if st['stationID'] is not None:  # look into whether bin 1 is what I want
-            stations_by_group[st['parentGroupID']]['stations'].append(st)
+            try:
+                stations_by_group[st['parentGroupID']]['stations'].append(st)
+            except KeyError as e:
+                pass
 
     return stations_by_group
+
+def get_states_by_region(region=444):
+    states = requests.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/current_geo_groups.json",
+            )
+
+    return [x['stationName'] for x in states.json()['currPredGeoGroupList'] if x['parentGroupID'] == region]
 
 def get_station_by_id(id):
     station = requests.get(
@@ -90,18 +94,17 @@ def get_station_by_id(id):
             )
     return station.json()['stations'][0]
 
-def get_tide_stations_by_group():
+def get_tide_stations_by_group(region_filter):
     tide_station_state = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=5",
             )
 
-    st = tide_station_state.json()
+    st = tide_station_state.json()['geoGroupList']
 
     tide_station_group = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=6",
             )
 
-    # print(st)
     grp = tide_station_group.json()['geoGroupList']
 
     tide_stations_by_group = {}
@@ -112,11 +115,10 @@ def get_tide_stations_by_group():
             'stations': [],
             }
 
-
-    _child_id = 1407
+    region_id = [x['geoGroupId'] for x in st if x['geoGroupName'] == region_filter][0]
 
     tide_station_children = requests.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups/{_child_id}/children.json",
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups/{region_id}/children.json",
             )
 
     st = tide_station_children.json()['stationList']
@@ -543,8 +545,11 @@ def tides():
                 ]
             }
 
-    current_station_group = get_current_stations_by_group()
-    tide_station_group = get_tide_stations_by_group()
+    state = "New York"
+    states = get_states_by_region('444')
+
+    current_station_group = get_current_stations_by_group(state)
+    tide_station_group = get_tide_stations_by_group(state)
 
     current_cookie = request.cookies.get('current', station_defaults['current'])
     tide_cookie = request.cookies.get('tide', station_defaults['tide'])

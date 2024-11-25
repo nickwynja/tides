@@ -234,12 +234,10 @@ select {
       <select name="current" id="current">
           <option value="None" {{'selected' if current_station == "None"}} >No current station</option>
           {% for k,v in current_station_group.items() %}
-              {% if v['meta']['parentGroupID'] == "458" %}
               <optgroup label="{{v['meta']['groupName']}}">
                   {% for s in v['stations'] | sort(attribute='stationName') | unique(attribute="stationName") %}
                   <option value="{{s.stationID}}" {{'selected' if current_station['id'] == s['stationID']}} >{{ s.stationName }}</option>
                   {% endfor %}
-              {% endif %}
           {% endfor %}
       </select>
     </div>
@@ -266,9 +264,8 @@ select {
 <div class="flex details">
     <div class="row">
         {% if hazards %}
-        <div class='hazard'>
         {% for h in hazards %}
-        <details>
+        <details class='hazard'>
             <summary>{{h['event']}}</summary>
             <pre>
 IN EFFECT: {{h['effective'].strftime("%a %H:%M")}}
@@ -278,7 +275,6 @@ ENDS: {{h['ends'].strftime("%a %H:%M")}}
 {{h['description']}}</pre>
         </details>
         {% endfor %}
-        </div>
         {% endif %}
         <details>
             <summary>Today's text report</summary>

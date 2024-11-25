@@ -88,32 +88,29 @@ def get_states_by_region(region=444):
 
     return [x['stationName'] for x in states.json()['currPredGeoGroupList'] if x['parentGroupID'] == region]
 
-def get_station_by_id(id):
-    station = requests.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{id}.json",
-            )
+def get_station_by_id(station_id):
+    if station_id == "" or station_id is None:
+        return None
+
+    try:
+        station = requests.get(
+                f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station_id}.json",
+                )
+
+        station.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        return None
+
     return station.json()['stations'][0]
 
 def get_tide_stations_by_group(region_filter):
+    tide_stations_by_group = {}
+
     tide_station_state = requests.get(
             f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=5",
             )
 
     st = tide_station_state.json()['geoGroupList']
-
-    tide_station_group = requests.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/geogroups.json?type=ETIDES&lvl=6",
-            )
-
-    grp = tide_station_group.json()['geoGroupList']
-
-    tide_stations_by_group = {}
-
-    for g in grp:
-        tide_stations_by_group[g['geoGroupId']] = {
-            'meta': g,
-            'stations': [],
-            }
 
     region_id = [x['geoGroupId'] for x in st if x['geoGroupName'] == region_filter][0]
 
@@ -123,15 +120,24 @@ def get_tide_stations_by_group(region_filter):
 
     st = tide_station_children.json()['stationList']
 
+    for g in st:
+        if g['geoGroupId'] != region_id:
+            tide_stations_by_group[g['geoGroupId']] = {
+                'meta': g,
+                'stations': [],
+                }
+
     for s in st:
-        try:
-            tide_stations_by_group[s['parentGeoGroupId']]['stations'].append(
-                    s
-                    )
-        except KeyError as e:
-            pass
+        if s['stationId'] is not None:  # look into whether bin 1 is what I want
+            try:
+                tide_stations_by_group[s['parentGeoGroupId']]['stations'].append(
+                        s
+                        )
+            except KeyError as e:
+                pass
 
     return tide_stations_by_group
+
 
 
 def sun_vlines(sun):

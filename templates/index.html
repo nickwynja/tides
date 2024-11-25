@@ -264,8 +264,9 @@ select {
 <div class="flex details">
     <div class="row">
         {% if hazards %}
+        <div class='hazard'>
         {% for h in hazards %}
-        <details class='hazard'>
+        <details>
             <summary>{{h['event']}}</summary>
             <pre>
 IN EFFECT: {{h['effective'].strftime("%a %H:%M")}}
@@ -275,7 +276,9 @@ ENDS: {{h['ends'].strftime("%a %H:%M")}}
 {{h['description']}}</pre>
         </details>
         {% endfor %}
+        </div>
         {% endif %}
+        <div>
         <details>
             <summary>Today's text report</summary>
             <br>
@@ -288,6 +291,7 @@ ENDS: {{h['ends'].strftime("%a %H:%M")}}
                 {% endfor %}
             </table>
         </details>
+        </div>
 
         <h3>Weather Forecast</h3>
         {% if current_station %}

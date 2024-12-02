@@ -472,6 +472,16 @@ def get_moon_phases(start, end):
                 })
     return phases
 
+def get_metadata_for_station(station_id):
+    station_metadata = requests.get(
+            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station_id}.json",
+            )
+
+    station_metadata = station_metadata.json()
+
+    return station_metadata['stations'][0]
+
+
 
 @app.route('/', methods=["GET", "POST"])
 def tides():
@@ -594,14 +604,10 @@ def tides():
 
     station_for_metadata = current_station if current_station is not None else tide_station
 
-    station_metadata = requests.get(
-            f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station_for_metadata['id']}.json",
-            )
+    station_metadata = get_metadata_for_station(station_for_metadata['id'])
 
-    station_metadata = station_metadata.json()
-
-    lat = station_metadata['stations'][0]['lat']
-    lon = station_metadata['stations'][0]['lng']
+    lat = station_metadata['lat']
+    lon = station_metadata['lng']
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
             'metadata collected'
@@ -779,6 +785,7 @@ def tides():
     wind_speeds = [x.text for x in root.findall('.//wind-speed[@type="sustained"]/value')]
     wind_dir = [x.text for x in root.findall('.//direction[@type="wind"]/value')]
     waves = [x.text for x in root.findall('.//waves[@type="significant"]/value')]
+    wind_chill = [x.text for x in root.findall('.//temperature[@type="wind chill"]/value')]
     wind_annots = []
 
     if waves:
@@ -787,9 +794,9 @@ def tides():
                 cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
                 wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
     else:
-        for t, ws, wd in zip(times, wind_speeds, wind_dir):
+        for t, ws, wd, wc in zip(times, wind_speeds, wind_dir, wind_chill):
             if ws is not None:
-                cond = f"{deg_to_compass(wd)}<br>{ws} mph"
+                cond = f"{deg_to_compass(wd)}<br>{ws} mph<br> {wc}&deg;F"
                 wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +

@@ -638,15 +638,18 @@ def tides():
                         "description": h['description'],
                         })
 
+    forecast_is_marine  = True if forecast_daily.json()['location']['county'] == "marine" else False
     forecast_periods = forecast_daily.json()['time']['startPeriodName']
+    forecast_temp_label = forecast_daily.json()['time']['tempLabel']
     forecast_text = forecast_daily.json()['data']['text']
+    forecast_temp = forecast_daily.json()['data']['temperature']
 
     forecast = []
 
-    for t, txt in zip(forecast_periods, forecast_text):
+    for t, txt,tl,temp in zip(forecast_periods, forecast_text, forecast_temp_label, forecast_temp):
         forecast.append({
                 "when": t,
-                "text": txt,
+                "text": txt + f" {tl} of {temp}." if forecast_is_marine else txt,
                 })
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +

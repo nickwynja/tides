@@ -630,8 +630,11 @@ def tides():
         for h in hazards_data.json()['features']:
             if 'properties' in h:
                 h = h['properties']
+                # print(h)
+                app.logger.info(f"hazard severity: {h['severity']}")
                 hazards.append({
                         "effective": pd.to_datetime(h['effective']),
+                        "headline": h['headline'].removesuffix(f" by {h['senderName']}"),
                         "ends": pd.to_datetime(h['ends']),
                         "expires": pd.to_datetime(h['expires']),
                         "event": h['event'],

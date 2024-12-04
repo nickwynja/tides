@@ -265,13 +265,8 @@ select {
         <div class='hazard'>
         {% for h in hazards %}
         <details>
-            <summary>{{h['event']}}</summary>
-            <pre>
-IN EFFECT: {{h['effective'].strftime("%a %H:%M")}}
-
-ENDS: {{h['ends'].strftime("%a %H:%M")}}
-
-{{h['description']}}</pre>
+            <summary>{{h['headline']}}</summary>
+            <pre>{{h['description']}}</pre>
         </details>
         {% endfor %}
         </div>

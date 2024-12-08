@@ -631,16 +631,18 @@ def tides():
             if 'properties' in h:
                 h = h['properties']
                 # print(h)
-                app.logger.info(f"hazard severity: {h['severity']}")
-                hazards.append({
-                        "effective": pd.to_datetime(h['effective']),
-                        "headline": h['headline'].removesuffix(f" by {h['senderName']}"),
-                        "ends": pd.to_datetime(h['ends']),
-                        "expires": pd.to_datetime(h['expires']),
-                        "event": h['event'],
-                        "description": h['description'],
-                        })
+                if h['severity'] != "Minor":
+                    app.logger.info(f"hazard severity: {h['severity']}")
+                    hazards.append({
+                            "effective": pd.to_datetime(h['effective']),
+                            "headline": h['headline'].removesuffix(f" by {h['senderName']}"),
+                            "ends": pd.to_datetime(h['ends']),
+                            "expires": pd.to_datetime(h['expires']),
+                            "event": h['event'],
+                            "description": h['description'],
+                            })
 
+    # print(forecast_daily.json())
     forecast_is_marine  = True if forecast_daily.json()['location']['county'] == "marine" else False
     forecast_periods = forecast_daily.json()['time']['startPeriodName']
     forecast_temp_label = forecast_daily.json()['time']['tempLabel']
@@ -789,20 +791,25 @@ def tides():
     root = tree.getroot()
     times = [x.text for x in root.findall('.//start-valid-time')]
     wind_speeds = [x.text for x in root.findall('.//wind-speed[@type="sustained"]/value')]
+    wind_gusts = [x.text for x in root.findall('.//wind-speed[@type="gust"]/value')]
     wind_dir = [x.text for x in root.findall('.//direction[@type="wind"]/value')]
     waves = [x.text for x in root.findall('.//waves[@type="significant"]/value')]
-    wind_chill = [x.text for x in root.findall('.//temperature[@type="wind chill"]/value')]
+    temp = [x.text for x in root.findall('.//temperature[@type="hourly"]/value')]
     wind_annots = []
 
     if waves:
-        for t, ws, wd, wv in zip(times, wind_speeds, wind_dir, waves):
+        for t, ws, wg, wd, wv in zip(times, wind_speeds, wind_gusts, wind_dir, waves):
             if ws is not None:
-                cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
+                if wg is not None:
+                    cond = f"{deg_to_compass(wd)}<br>{ws}-{wg} kt<br>{wv}'"
+                else:
+                    cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
                 wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
     else:
-        for t, ws, wd, wc in zip(times, wind_speeds, wind_dir, wind_chill):
+        for t, ws, wd, f in zip(times, wind_speeds, wind_dir, temp):
             if ws is not None:
-                cond = f"{deg_to_compass(wd)}<br>{ws} mph<br> {wc}&deg;F"
+                deg = f"{f}&deg;F" if f is not None else ""
+                cond = f"{deg_to_compass(wd)}<br>{ws} mph<br> {deg}"
                 wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +

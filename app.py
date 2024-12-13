@@ -653,7 +653,7 @@ def tides():
     met_data = {
             'Water Temp': {},
             'Wind Speed': {},
-            'Wind Direction': {},
+            'Wind Dir': {},
             'Wind Gusts': {},
             'Air Temp': {},
             'Pressure': {},
@@ -681,7 +681,7 @@ def tides():
         buoy_time = pytz.utc.localize(buoy_time).astimezone(EASTERN)
         met_data['Updated'][st] = buoy_time.strftime("%H:%M")
         met_data['Wind Speed'][st] = f"{mps_to_kt(bl['WSPD'])} kt" if not pd.isnull(bl['WSPD']) else "-"
-        met_data['Wind Direction'][st] = f"{deg_to_compass(bl['WDIR'])}" if not pd.isnull(bl['WDIR']) else "-"
+        met_data['Wind Dir'][st] = f"{deg_to_compass(bl['WDIR'])}" if not pd.isnull(bl['WDIR']) else "-"
         met_data['Wind Gusts'][st] = f"{mps_to_kt(bl['GST'])} kt" if not pd.isnull(bl['GST']) else "-"
         met_data['Pressure'][st] = f"{bl['PRES']} hPa" if not pd.isnull(bl['PRES']) else "-"
         met_data['Air Temp'][st] = f"{c_to_f(bl['ATMP'])}&deg;F" if not pd.isnull(bl['ATMP']) else "-"
@@ -889,7 +889,7 @@ def tides():
     loc = "Local"
     met_data['Updated'][loc] = local_now.strftime("%H:%M")
     met_data['Wind Speed'][loc] = f"{round(forecast['current']['wind_speed_10m'])} kt"
-    met_data['Wind Direction'][loc] = f"{deg_to_compass(forecast['current']['wind_direction_10m'])}"
+    met_data['Wind Dir'][loc] = f"{deg_to_compass(forecast['current']['wind_direction_10m'])}"
     met_data['Wind Gusts'][loc] = f"{round(forecast['current']['wind_gusts_10m'])} kt"
     met_data['Pressure'][loc] = f"{round(forecast['current']['pressure_msl'], 1)} hPa"
     met_data['Air Temp'][loc] = f"{round(forecast['current']['temperature_2m'])}&deg;F"

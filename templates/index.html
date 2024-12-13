@@ -352,11 +352,11 @@ table.forecast td {
 
         <h3>Observations</h3>
 
-        <table>
+        <table class="forecast">
             <thead>
                 <tr>
-                    <th></th>
-                    {% for station in met_data['Wind Speed'].keys() %}
+                    <th class="head-col"></th>
+                    {% for station in met_data['Wind Speed'].keys() | reverse %}
                     <th><a href="https://www.ndbc.noaa.gov/station_page.php?station={{station}}" target="_blank">{{ station }}</a></th>
                     {% endfor %}
                 </tr>
@@ -364,8 +364,8 @@ table.forecast td {
             <tbody>
                 {% for data_type, values in met_data.items() %}
                 <tr>
-                    <td>{{ data_type }}</td>
-                    {% for station, value in values.items() %}
+                    <td class="head-col">{{ data_type }}</td>
+                    {% for station, value in values.items() | reverse %}
                     <td>{{ value|safe }}</td>
                     {% endfor %}
                 </tr>

@@ -23,6 +23,8 @@ import hashlib
 import os
 from flask_compress import Compress
 import numpy as np
+import openmeteo_requests
+from retry_requests import retry
 
 app = Flask(__name__)
 turbo = Turbo(app)
@@ -30,6 +32,10 @@ Compress(app)
 
 # https://requests-cache.readthedocs.io/en/stable/user_guide/general.html#patching
 requests_cache.install_cache()
+
+cache_session = requests_cache.CachedSession('.cache')
+retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
+openmeteo = openmeteo_requests.Client(session = retry_session)
 
 NOAA_TC_API = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 CACHE_DIR = "cache"
@@ -537,14 +543,13 @@ def tides():
         return resp
 
 
-    DAYS = 5
+    DAYS = 7
 
     tz = 'US/Eastern'
     EASTERN = pytz.timezone(tz)
     local_now = datetime.now(pytz.timezone(tz))
     tz_offset = int(local_now.utcoffset().total_seconds()/60/60)
-    # start_date = local_now.strftime('%Y%m%d')
-    start_date_dt = (local_now - timedelta(days = 1)).replace(microsecond=0, second=0, minute=0, hour=0)
+    start_date_dt = (local_now).replace(microsecond=0, second=0, minute=0, hour=0)
     end_date_dt = (local_now + timedelta(days = DAYS))
     start_date = start_date_dt.strftime('%Y%m%d')
     end_date = end_date_dt.strftime('%Y%m%d')
@@ -642,25 +647,9 @@ def tides():
                             "description": h['description'],
                             })
 
-    # print(forecast_daily.json())
-    forecast_is_marine  = True if forecast_daily.json()['location']['county'] == "marine" else False
-    forecast_periods = forecast_daily.json()['time']['startPeriodName']
-    forecast_temp_label = forecast_daily.json()['time']['tempLabel']
-    forecast_text = forecast_daily.json()['data']['text']
-    forecast_temp = forecast_daily.json()['data']['temperature']
-
-    forecast = []
-
-    for t, txt,tl,temp in zip(forecast_periods, forecast_text, forecast_temp_label, forecast_temp):
-        forecast.append({
-                "when": t,
-                "text": txt + f" {tl} of {temp}." if forecast_is_marine else txt,
-                })
-
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
                      'forecast collected'
                      )
-
     met_data = {
             'Water Temp': {},
             'Wind Speed': {},
@@ -698,6 +687,7 @@ def tides():
         met_data['Air Temp'][st] = f"{c_to_f(bl['ATMP'])}&deg;F" if not pd.isnull(bl['ATMP']) else "-"
         met_data['Water Temp'][st] = f"{c_to_f(bl['WTMP'])}&deg;F" if not pd.isnull(bl['WTMP']) else "-"
 
+
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
             'buoy collected'
                      )
@@ -723,6 +713,20 @@ def tides():
 
     dt['Feet'] = dt['Feet'].astype("float")
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
+    dt['Day'] = dt['Date'].dt.strftime("%Y-%m-%d")
+
+    # print(dt)
+
+    tide_by_day = {}
+
+    for i,r in dt.iterrows():
+        group = tide_by_day.setdefault(r['Day'], {})
+        if r['Type'] == 'high tide':
+            high = group.setdefault('high', [])
+            high.append(r['Time'])
+        if r['Type'] == 'low tide':
+            low = group.setdefault('low', [])
+            low.append(r['Time'])
 
     tide_max = dt['Feet'].max()  # used in chart for max moon %
 
@@ -782,35 +786,127 @@ def tides():
             'currents charted'
             )
 
-    forecast_marine = requests.get(
-            f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=digitalDWML",
-            expire_after=seconds_until_hour(),
-            )
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": ["temperature_2m", "cloud_cover", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "pressure_msl"],
+        "hourly": ["temperature_2m", "relative_humidity_2m", "precipitation_probability", "precipitation", "pressure_msl", "cloud_cover", "visibility", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"],
+        "daily": ["temperature_2m_max", "temperature_2m_min", "wind_speed_10m_max", "wind_gusts_10m_max", "wind_direction_10m_dominant"],
+        "temperature_unit": "fahrenheit",
+        "wind_speed_unit": "kn",
+        "precipitation_unit": "inch",
+        "timezone": "America/New_York"
+    }
 
-    tree = ET.ElementTree(ET.fromstring(forecast_marine.text))
-    root = tree.getroot()
-    times = [x.text for x in root.findall('.//start-valid-time')]
-    wind_speeds = [x.text for x in root.findall('.//wind-speed[@type="sustained"]/value')]
-    wind_gusts = [x.text for x in root.findall('.//wind-speed[@type="gust"]/value')]
-    wind_dir = [x.text for x in root.findall('.//direction[@type="wind"]/value')]
-    waves = [x.text for x in root.findall('.//waves[@type="significant"]/value')]
-    temp = [x.text for x in root.findall('.//temperature[@type="hourly"]/value')]
+    forecast_responses = openmeteo.weather_api(url, params=params)
+    forecast_response = forecast_responses[0]
+    forecast_current = forecast_response.Current()
+    forecast_hourly = forecast_response.Hourly()
+    forecast_daily = forecast_response.Daily()
+
+    url = "https://marine-api.open-meteo.com/v1/marine"
+    params = {
+        "latitude": 54.544587,
+        "longitude": 10.227487,
+        "current": ["wave_height", "wave_direction", "wave_period"],
+        "hourly": ["wave_height", "wave_direction", "wave_period"],
+        "daily": ["wave_height_max", "wave_direction_dominant", "wave_period_max"],
+        "length_unit": "imperial",
+        "wind_speed_unit": "kn"
+    }
+
+    marine_forecast = openmeteo.weather_api(url, params=params)
+    marine_response = marine_forecast[0]
+    marine_current = marine_response.Current()
+    marine_daily = marine_response.Daily()
+    marine_hourly = marine_response.Hourly()
+
+    forecast = {
+            'current': {
+                'temperature_2m': forecast_current.Variables(0).Value(),
+                'cloud_cover': forecast_current.Variables(1).Value(),
+                'wind_speed_10m': forecast_current.Variables(2).Value(),
+                'wind_direction_10m': forecast_current.Variables(3).Value(),
+                'wind_gusts_10m': forecast_current.Variables(4).Value(),
+                'pressure_msl': forecast_current.Variables(5).Value(),
+                'wave_height': marine_current.Variables(0).Value(),
+                'wave_direction': marine_current.Variables(1).Value(),
+                'wave_period': marine_current.Variables(2).Value(),
+                },
+            'hourly': {
+                'temperature_2m': forecast_hourly.Variables(0).ValuesAsNumpy(),
+                'relative_humidity_2m': forecast_hourly.Variables(1).ValuesAsNumpy(),
+                'precipitation_probability': forecast_hourly.Variables(2).ValuesAsNumpy(),
+                'precipitation': forecast_hourly.Variables(3).ValuesAsNumpy(),
+                'pressure_msl': forecast_hourly.Variables(4).ValuesAsNumpy(),
+                'cloud_cover': forecast_hourly.Variables(5).ValuesAsNumpy(),
+                'visibility': forecast_hourly.Variables(6).ValuesAsNumpy(),
+                'wind_speed_10m': forecast_hourly.Variables(7).ValuesAsNumpy(),
+                'wind_direction_10m': forecast_hourly.Variables(8).ValuesAsNumpy(),
+                'wind_gusts_10m': forecast_hourly.Variables(9).ValuesAsNumpy(),
+                'wave_height': marine_hourly.Variables(0).ValuesAsNumpy(),
+                'wave_direction': marine_hourly.Variables(1).ValuesAsNumpy(),
+                'wave_period': marine_hourly.Variables(2).ValuesAsNumpy(),
+                },
+            'daily': {
+                'temperature_2m_max': forecast_daily.Variables(0).ValuesAsNumpy(),
+                'temperature_2m_min': forecast_daily.Variables(1).ValuesAsNumpy(),
+                'wind_speed_10m_max': forecast_daily.Variables(2).ValuesAsNumpy(),
+                'wind_gusts_10m_max': forecast_daily.Variables(3).ValuesAsNumpy(),
+                'wind_direction_10m_dominant': forecast_daily.Variables(4).ValuesAsNumpy(),
+                'wave_height_max': marine_daily.Variables(0).ValuesAsNumpy(),
+                'wave_direction_dominant': marine_daily.Variables(1).ValuesAsNumpy(),
+                'wave_period_max': marine_daily.Variables(2).ValuesAsNumpy(),
+                },
+            }
+
+    hourly_data = {"date": pd.date_range(
+        start = pd.to_datetime(forecast_hourly.Time(), unit = "s", utc = True),
+        end = pd.to_datetime(forecast_hourly.TimeEnd(), unit = "s", utc = True),
+        freq = pd.Timedelta(seconds = forecast_hourly.Interval()),
+        inclusive = "left"),
+        **forecast['hourly']
+    }
+
+    hourly_dataframe = pd.DataFrame(data = hourly_data)
+
+    daily_data = {"date": pd.date_range(
+        start = pd.to_datetime(forecast_daily.Time(), unit = "s", utc = True),
+        end = pd.to_datetime(forecast_daily.TimeEnd(), unit = "s", utc = True),
+        freq = pd.Timedelta(seconds = forecast_daily.Interval()),
+        inclusive = "left"),
+      **forecast['daily']
+    }
+
+    daily_dataframe = pd.DataFrame(data = daily_data)
+
+    daily_dataframe['wind_direction_10m_dominant_compass'] = daily_dataframe['wind_direction_10m_dominant'].apply(deg_to_compass)
+    daily_dataframe['wave_direction_dominant_compass'] = daily_dataframe['wave_direction_dominant'].apply(deg_to_compass)
+    daily_dataframe['date'] = pd.to_datetime(daily_dataframe['date'])
+    daily_dataframe['day'] = daily_dataframe['date'].dt.strftime("%Y-%m-%d")
+
+    loc = "Local"
+    met_data['Updated'][loc] = local_now.strftime("%H:%M")
+    met_data['Wind Speed'][loc] = f"{round(forecast['current']['wind_speed_10m'])} kt"
+    met_data['Wind Direction'][loc] = f"{deg_to_compass(forecast['current']['wind_direction_10m'])}"
+    met_data['Wind Gusts'][loc] = f"{round(forecast['current']['wind_gusts_10m'])} kt"
+    met_data['Pressure'][loc] = f"{round(forecast['current']['pressure_msl'], 1)} hPa"
+    met_data['Air Temp'][loc] = f"{round(forecast['current']['temperature_2m'])}&deg;F"
+    met_data['Water Temp'][loc] = "-"
+
+
     wind_annots = []
-
-    if waves:
-        for t, ws, wg, wd, wv in zip(times, wind_speeds, wind_gusts, wind_dir, waves):
-            if ws is not None:
-                if wg is not None:
-                    cond = f"{deg_to_compass(wd)}<br>{ws}-{wg} kt<br>{wv}'"
-                else:
-                    cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
-                wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
-    else:
-        for t, ws, wd, f in zip(times, wind_speeds, wind_dir, temp):
-            if ws is not None:
-                deg = f"{f}&deg;F" if f is not None else ""
-                cond = f"{deg_to_compass(wd)}<br>{ws} mph<br> {deg}"
-                wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
+    for i,d in hourly_dataframe.iterrows():
+        t = d['date']
+        cond = f"{deg_to_compass(d['wind_direction_10m'])}"
+        if d['wind_gusts_10m'] and d['wind_gusts_10m'] > (d['wind_speed_10m'] + 3):
+            cond = f"{cond}<br>{round(d['wind_speed_10m'])}-{round(d['wind_gusts_10m'])} kt"
+        else:
+            cond = f"{cond}<br>{round(d['wind_speed_10m'])} kt"
+        cond = f"{cond}<br>{round(d['wave_height'], 1)}' @ {round(d['wave_period'])}s"
+        cond = f"{cond}<br>{round(d['temperature_2m'])}&deg;F"
+        wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
                      'wind annotations'
@@ -991,7 +1087,6 @@ def tides():
                                          tide_station=tide_station,
                                          current_station_group=current_station_group,
                                          tide_station_group=tide_station_group,
-                                         forecast=forecast,
                                          met_data=met_data,
                                          tide_offset=tide_offset,
                                          text_report=text,
@@ -999,6 +1094,9 @@ def tides():
                                          favs=favs,
                                          moon_phases=moon_phases,
                                          hazards=hazards,
+                                         daily_forecast=daily_dataframe,
+                                         tide_by_day=tide_by_day,
+                                         sun=sun,
                                          ))
 
     if current_param != station_defaults['current']:

@@ -140,18 +140,6 @@ form .row {
     margin-bottom: 5px;
 }
 
-
-@media (min-width: 800px) {
-    form .row {
-        margin: 0 20px 5px 0;
-    }
-    .details .row {
-        width: 50%
-
-    }
-}
-
-
 select {
     max-width: 350px;
 }
@@ -180,6 +168,27 @@ select {
 .hazard summary {
     color: orange;
 }
+
+table.forecast {
+    overflow-x: scroll;
+    width: 375px;
+    display: block;
+}
+
+@media (min-width: 800px) {
+    form .row {
+        margin: 0 20px 5px 0;
+    }
+    .details .row {
+        <!-- width: 50% -->
+
+    }
+    table.forecast {
+        width: 100%;
+    }
+}
+
+
 
 
 </style>
@@ -271,37 +280,57 @@ select {
         {% endfor %}
         </div>
         {% endif %}
-        <div>
-        <details>
-            <summary>Today's text report</summary>
-            <br>
-            <table>
-                {% for t in text_report %}
-                <tr>
-                    <td>{{ t.time.strftime('%H:%M')}}</td>
-                    <td>{{ t.text|safe}}</td>
-                </tr>
-                {% endfor %}
-            </table>
-        </details>
-        </div>
 
 <div class="flex details">
     <div class="row">
         <h3>Weather Forecast</h3>
-        {% if current_station %}
-        {% set name = current_station['name'].split(',')[0] %}
-        <p>At {{name}}: <a href="https://marine.weather.gov/MapClick.php?lat={{ current_station['lat'] }}&lon={{ current_station['lng'] }}" target="_blank">({{ tc }})</a></p>
-        {% else %}
-        <p>For <a href="https://marine.weather.gov/MapClick.php?lat={{ tide_station['lat'] }}&lon={{ tide_station['lng'] }}" target="_blank">{{tide_station['name']}}</a>:</p>
-        {% endif %}
-        <table>
-            {% for f in forecast %}
-            <tr>
-                <td>{{ f.when}}</td>
-                <td>{{ f.text}}</td>
-            </tr>
-            {% endfor %}
+
+        <table class="forecast">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th colspan="3">wind</th>
+                    <th colspan="2">waves</th>
+                    <th colspan="2">temp</th>
+                    <th colspan="2">tides</th>
+                    <th colspan="4">sun</th>
+                </tr>
+                <tr>
+                    <th>day</th>
+                    <th>dir</th>
+                    <th>wind</th>
+                    <th>gusts</th>
+                    <th>ht</th>
+                    <th>per</th>
+                    <th>high</th>
+                    <th>low</th>
+                    <th>high</th>
+                    <th>low</th>
+                    <th>dawn</th>
+                    <th>rise</th>
+                    <th>set</th>
+                    <th>dusk</th>
+                </tr>
+            </thead>
+        {% for key,value in daily_forecast.iterrows() %}
+        {% set tides = tide_by_day.get(value.date.strftime('%Y-%m-%d')) %}
+        <tr>
+            <td>{{ value.date.strftime('%a, %m/%d') }}</td>
+            <td> {{ value.wind_direction_10m_dominant_compass }}</td>
+            <td> {{ value.wind_speed_10m_max | round | int }} kt</td>
+            <td> {{ value.wind_gusts_10m_max | round | int }} kt</td>
+            <td> {{ value.wave_height_max | round | int }}'</td>
+            <td> {{ value.wave_period_max | round(1) }}s</td>
+            <td>{{ value.temperature_2m_max | round | int }}&deg;F</td>
+            <td>{{ value.temperature_2m_min | round | int }}&deg;F</td>
+            <td>{{ tides.high | join(' ') }}</td>
+            <td>{{ tides.low  | join(' ')}}</td>
+            <td>{{ sun[key]['dawn'].strftime('%H:%M') }}</td>
+            <td>{{ sun[key]['rise'].strftime('%H:%M') }}</td>
+            <td>{{ sun[key]['set'].strftime('%H:%M') }}</td>
+            <td>{{ sun[key]['dusk'].strftime('%H:%M') }}</td>
+        </tr>
+        {% endfor %}
         </table>
 
         <h3>Observations</h3>

@@ -10,3 +10,5 @@ turbo-flask
 skyfield
 flask-compress
 numpy
+retry_requests
+openmeteo_requests

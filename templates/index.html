@@ -171,8 +171,16 @@ select {
 
 table.forecast {
     overflow-x: scroll;
-    width: 360px;
+    width: 280px;
     display: block;
+    margin-left: 80px;
+}
+
+.head-col {
+    position: absolute;
+    width: 80px;
+    left: 0;
+    top: auto;
 }
 
 @media (min-width: 800px) {
@@ -288,7 +296,7 @@ table.forecast {
         <table class="forecast">
             <thead>
                 <tr>
-                    <th></th>
+                    <th class="head-col"></th>
                     <th colspan="3">wind</th>
                     <th colspan="2">waves</th>
                     <th colspan="2">temp</th>
@@ -296,7 +304,7 @@ table.forecast {
                     <th colspan="4">sun</th>
                 </tr>
                 <tr>
-                    <th>day</th>
+                    <th class="head-col">day</th>
                     <th>dir</th>
                     <th>wind</th>
                     <th>gusts</th>
@@ -315,7 +323,7 @@ table.forecast {
         {% for key,value in daily_forecast.iterrows() %}
         {% set tides = tide_by_day.get(value.date.strftime('%Y-%m-%d')) %}
         <tr>
-            <td>{{ value.date.strftime('%a, %m/%d') }}</td>
+            <td class="head-col">{{ value.date.strftime('%a%m/%d') }}</td>
             <td> {{ value.wind_direction_10m_dominant_compass }}</td>
             <td> {{ value.wind_speed_10m_max | round | int }} kt</td>
             <td> {{ value.wind_gusts_10m_max | round | int }} kt</td>

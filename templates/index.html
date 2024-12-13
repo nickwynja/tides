@@ -173,12 +173,16 @@ table.forecast {
     overflow-x: scroll;
     width: 280px;
     display: block;
-    margin-left: 80px;
+    margin-left: 85px;
+}
+
+table.forecast td {
+    white-space: nowrap;
 }
 
 .head-col {
     position: absolute;
-    width: 80px;
+    width: 85px;
     left: 0;
     top: auto;
 }
@@ -323,7 +327,7 @@ table.forecast {
         {% for key,value in daily_forecast.iterrows() %}
         {% set tides = tide_by_day.get(value.date.strftime('%Y-%m-%d')) %}
         <tr>
-            <td class="head-col">{{ value.date.strftime('%a%m/%d') }}</td>
+            <td class="head-col">{{ value.date.strftime('%a %m/%d') }}</td>
             <td> {{ value.wind_direction_10m_dominant_compass }}</td>
             <td> {{ value.wind_speed_10m_max | round | int }} kt</td>
             <td> {{ value.wind_gusts_10m_max | round | int }} kt</td>

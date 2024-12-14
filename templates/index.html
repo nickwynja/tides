@@ -336,8 +336,8 @@ table.forecast td {
             <td> {{ value.wind_direction_10m_dominant_compass }}</td>
             <td> {{ value.wind_speed_10m_max | round | int }} kt</td>
             <td> {{ value.wind_gusts_10m_max | round | int }} kt</td>
-            <td> {{ value.wave_height_max | round | int }}'</td>
-            <td> {{ value.wave_period_max | round(1) }}s</td>
+            <!-- <td> {{ value.wave_height_max | round | int }}'</td> -->
+            <!-- <td> {{ value.wave_period_max | round(1) }}s</td> -->
             <td>{{ value.temperature_2m_max | round | int }}&deg;F</td>
             <td>{{ value.temperature_2m_min | round | int }}&deg;F</td>
             <td>{{ tides.high | join(' ') }}</td>

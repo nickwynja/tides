@@ -904,7 +904,7 @@ def tides():
             cond = f"{cond}<br>{round(d['wind_speed_10m'])}-{round(d['wind_gusts_10m'])} kt"
         else:
             cond = f"{cond}<br>{round(d['wind_speed_10m'])} kt"
-        cond = f"{cond}<br>{round(d['wave_height'], 1)}' @ {round(d['wave_period'])}s"
+        cond = f"{cond}<br>{round(d['wave_height'], 1)}'"
         cond = f"{cond}<br>{round(d['temperature_2m'])}&deg;F"
         wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 

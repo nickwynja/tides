@@ -33,7 +33,7 @@ Compress(app)
 # https://requests-cache.readthedocs.io/en/stable/user_guide/general.html#patching
 requests_cache.install_cache()
 
-cache_session = requests_cache.CachedSession('.cache')
+cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
 retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
 openmeteo = openmeteo_requests.Client(session = retry_session)
 
@@ -813,7 +813,8 @@ def tides():
         "hourly": ["wave_height", "wave_direction", "wave_period"],
         "daily": ["wave_height_max", "wave_direction_dominant", "wave_period_max"],
         "length_unit": "imperial",
-        "wind_speed_unit": "kn"
+        "wind_speed_unit": "kn",
+        "timezone": "America/New_York"
     }
 
     marine_forecast = openmeteo.weather_api(url, params=params)

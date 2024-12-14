@@ -807,8 +807,8 @@ def tides():
 
     url = "https://marine-api.open-meteo.com/v1/marine"
     params = {
-        "latitude": 54.544587,
-        "longitude": 10.227487,
+        "latitude": lat,
+        "longitude": lon,
         "current": ["wave_height", "wave_direction", "wave_period"],
         "hourly": ["wave_height", "wave_direction", "wave_period"],
         "daily": ["wave_height_max", "wave_direction_dominant", "wave_period_max"],
@@ -904,7 +904,7 @@ def tides():
             cond = f"{cond}<br>{round(d['wind_speed_10m'])}-{round(d['wind_gusts_10m'])} kt"
         else:
             cond = f"{cond}<br>{round(d['wind_speed_10m'])} kt"
-        # cond = f"{cond}<br>{round(d['wave_height'], 1)}'"
+        cond = f"{cond}<br>{round(d['wave_height'], 1)}' @ {round(d['wave_period'])}s"
         cond = f"{cond}<br>{round(d['temperature_2m'])}&deg;F"
         wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
 

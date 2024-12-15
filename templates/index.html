@@ -305,8 +305,9 @@ table.forecast td {
                     <th colspan="3">wind</th>
                     <th colspan="2">waves</th>
                     <th colspan="2">temp</th>
-                    <th colspan="2">tides</th>
+                    <th colspan="4">tides</th>
                     <th colspan="4">sun</th>
+                    <th colspan="3">moon</th>
                 </tr>
                 <tr>
                     <th class="head-col"></th>
@@ -318,15 +319,19 @@ table.forecast td {
                     <th>high</th>
                     <th>low</th>
                     <th>high</th>
+                    <th>max</th>
                     <th>low</th>
+                    <th>min</th>
                     <th>dawn</th>
                     <th>rise</th>
                     <th>set</th>
                     <th>dusk</th>
+                    <th>phase</th>
                 </tr>
             </thead>
         {% for key,value in daily_forecast.iterrows() %}
-        {% set tides = tide_by_day.get(value.date.strftime('%Y-%m-%d')) %}
+        {% set d = value.date.strftime('%Y-%m-%d') %}
+        {% set tides = tide_by_day.get(d) %}
         <tr>
             {% if loop.first %}
             <td class="head-col">Today</td>
@@ -341,11 +346,14 @@ table.forecast td {
             <td>{{ value.temperature_2m_max | round | int }}&deg;F</td>
             <td>{{ value.temperature_2m_min | round | int }}&deg;F</td>
             <td>{{ tides.high | join(' ') }}</td>
+            <td>{{ tides.feet  | max }}</td>
             <td>{{ tides.low  | join(' ')}}</td>
+            <td style="text-align: right;">{{ tides.feet  | min }}</td>
             <td>{{ sun[key]['dawn'].strftime('%H:%M') }}</td>
             <td>{{ sun[key]['rise'].strftime('%H:%M') }}</td>
             <td>{{ sun[key]['set'].strftime('%H:%M') }}</td>
             <td>{{ sun[key]['dusk'].strftime('%H:%M') }}</td>
+            <td style="text-align: center;">{{ moon_forecast.get(d, '-') }}</td>
         </tr>
         {% endfor %}
         </table>

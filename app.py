@@ -728,6 +728,9 @@ def tides():
             low = group.setdefault('low', [])
             low.append(r['Time'])
 
+        height = group.setdefault('feet', [])
+        height.append(round(r['Feet'], 1))
+
     tide_max = dt['Feet'].max()  # used in chart for max moon %
 
     fig.add_trace(
@@ -942,6 +945,12 @@ def tides():
             start_date_dt + pd.offsets.MonthEnd(2)
             )
 
+
+    moon_forecast = {}
+    for m in moon_phases:
+        d = m['date'].strftime('%Y-%m-%d')
+        moon_forecast[d] = m['phase']
+
     moon_data = []
 
     for m in moon_events:
@@ -1106,6 +1115,7 @@ def tides():
                                          daily_forecast=daily_dataframe,
                                          tide_by_day=tide_by_day,
                                          sun=sun,
+                                         moon_forecast=moon_forecast
                                          ))
 
     if current_param != station_defaults['current']:

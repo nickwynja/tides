@@ -909,12 +909,10 @@ def tides():
         else:
             cond = f"{cond}<br>{round(d['wind_speed_10m'])} kt"
 
-        w = round(d['wave_height'])
-
-        if w > 2:
-            wave_cond = f"{w}' @ {round(d['wave_period'])}s"
+        if d['wave_height'] >= 3:
+            wave_cond = f"{math.ceil(d['wave_height'] * 2) / 2}' @ {round(d['wave_period'])}s"
         else:
-            wave_cond = f"{w}'"
+            wave_cond = f"{round(d['wave_height']) if d['wave_height'] > 0.9 else 0}'"
 
         cond = f"{cond}<br>{wave_cond}"
         cond = f"{cond}<br>{round(d['temperature_2m'])}&deg;F"
@@ -978,6 +976,12 @@ def tides():
                   })
 
     moon_data = sorted(moon_data, key=lambda d: d['time'])
+
+
+    # fix curve at start of day
+    if moon_data[0]['phen'] == 'set':
+        del moon_data[0]
+
     dm = pd.DataFrame(moon_data)
 
     fig.add_trace(

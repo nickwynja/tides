@@ -491,6 +491,53 @@ def get_metadata_for_station(station_id):
     return station_metadata['stations'][0]
 
 
+def process_marine_forecast(fcm):
+    fc = []
+    if fcm['location']['county'] != "marine":
+        return fc
+
+    for f in fcm['data']['text']:
+        fx = {}
+        for l in f.split('.'):
+            l = l.strip()
+            if 'wind' in l.lower():
+                if l.split(' ')[0] in COMPASS:
+                    wind_dir = l.split(' ')[0]
+                    s = l.removeprefix(f"{wind_dir} wind ")
+                else:
+                    if "Winds could gust" in l:
+                        # wind_dir = ""
+                        fx['gusts'] = re.findall("\d+", l)[0]
+                    if l.split(' ')[0] == "Variable":
+                        wind_dir = "-"
+                        s = l.removeprefix(f"Variable winds ")
+                fx['wind_dir'] = wind_dir
+                ss = s.split('kt', 1)
+                s = ss[0].strip()
+                s = s.replace("Winds could gust as high as ", "")
+                s = s.replace("less than ", '<')
+                s = s.replace(" to ", '-')
+                s = s.replace("around ", '')
+                fx['wind_speed'] = s
+                if len(ss) > 1:
+                    if 'gusts' in ss[1]:
+                        fx['gusts'] = re.findall("\d+", ss[1])[0]
+                    else:
+                        fx['wind_more'] = ss[1].strip()
+            if 'seas' in l.lower():
+                s = l.removeprefix('Seas ')
+                s = s.removeprefix('around')
+                s = s.replace(' ft', '')
+                s = s.replace(" building to", "' then ")
+                s = s.replace(" subsiding to", "' then ")
+                s = s.replace(' or less', ">")
+                s = s.replace(' to ', '-')
+                # fx['seas'] = s.replace(' ', '')
+                fx['seas'] = s.strip()
+
+        fc.append(fx)
+    return fc
+
 
 @app.route('/', methods=["GET", "POST"])
 def tides():
@@ -766,36 +813,39 @@ def tides():
                 )
 
         c = currents.json()
-        c = c['current_predictions']['cp']
-        dc = pd.DataFrame.from_dict(c)
-        dc = dc.rename(columns={
-            'Time': 'Date',
-            'Velocity_Major': 'Knots'
-            })
+        if 'error' not in c:
+            c = c['current_predictions']['cp']
+            dc = pd.DataFrame.from_dict(c)
+            dc = dc.rename(columns={
+                'Time': 'Date',
+                'Velocity_Major': 'Knots'
+                })
 
-        dc['Date'] = pd.to_datetime(dc['Date'])
-        dc['Time'] = dc['Date'].dt.strftime("%H:%M")
-        dc['Event'] = dc.apply(until_next_event, df=dc, axis=1)
-        dc['Type'] = dc['Type'].replace(['ebb'], 'max ebb')
-        dc['Type'] = dc['Type'].replace(['flood'], 'max flood')
-        dc['Type'] = dc['Type'].replace(['slack'], 'slack current')
+            dc['Date'] = pd.to_datetime(dc['Date'])
+            dc['Time'] = dc['Date'].dt.strftime("%H:%M")
+            dc['Event'] = dc.apply(until_next_event, df=dc, axis=1)
+            dc['Type'] = dc['Type'].replace(['ebb'], 'max ebb')
+            dc['Type'] = dc['Type'].replace(['flood'], 'max flood')
+            dc['Type'] = dc['Type'].replace(['slack'], 'slack current')
 
-        fig.add_trace(
-            go.Scatter(
-              x=dc['Date'], y=dc['Knots'],
-              text=dc['Event'],
-              texttemplate=dc['Time'],
-              hovertemplate = "%{text}",
-              mode='lines+markers',
-              textposition='top center', # Adjust text position
-              line_shape="spline",
-              name='Current'
-            )
-        )
-
-        fig.update_traces(
-                textposition=improve_text_position(dc['Time']),
+            fig.add_trace(
+                go.Scatter(
+                  x=dc['Date'], y=dc['Knots'],
+                  text=dc['Event'],
+                  texttemplate=dc['Time'],
+                  hovertemplate = "%{text}",
+                  mode='lines+markers',
+                  textposition='top center', # Adjust text position
+                  line_shape="spline",
+                  name='Current'
                 )
+            )
+
+            fig.update_traces(
+                    textposition=improve_text_position(dc['Time']),
+                    )
+        else:
+            app.logger.debug(c['error']['message'])
 
         app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
             'currents charted'
@@ -947,50 +997,7 @@ def tides():
 
         print(forecast_marine_daily.url)
 
-        fcm = forecast_marine_daily.json()
-
-        for f in fcm['data']['text']:
-            fx = {}
-            for l in f.split('.'):
-                l = l.strip()
-                if 'wind' in l.lower():
-                    if l.split(' ')[0] in COMPASS:
-                        wind_dir = l.split(' ')[0]
-                        s = l.removeprefix(f"{wind_dir} wind ")
-                    else:
-                        if "Winds could gust" in l:
-                            # wind_dir = ""
-                            fx['gusts'] = re.findall("\d+", l)[0]
-                        if l.split(' ')[0] == "Variable":
-                            wind_dir = "-"
-                            s = l.removeprefix(f"Variable winds ")
-                    fx['wind_dir'] = wind_dir
-                    ss = s.split('kt', 1)
-                    s = ss[0].strip()
-                    s = s.replace("Winds could gust as high as ", "")
-                    s = s.replace("less than ", '<')
-                    s = s.replace(" to ", '-')
-                    s = s.replace("around ", '')
-                    fx['wind_speed'] = s
-                    if len(ss) > 1:
-                        if 'gusts' in ss[1]:
-                            fx['gusts'] = re.findall("\d+", ss[1])[0]
-                        else:
-                            fx['wind_more'] = ss[1].strip()
-                if 'seas' in l.lower():
-                    print(l)
-                    s = l.removeprefix('Seas ')
-                    s = s.removeprefix('around')
-                    s = s.replace(' ft', '')
-                    s = s.replace(" building to", "' then ")
-                    s = s.replace(" subsiding to", "' then ")
-                    s = s.replace(' or less', ">")
-                    s = s.replace(' to ', '-')
-                    # fx['seas'] = s.replace(' ', '')
-                    fx['seas'] = s.strip()
-
-            fc.append(fx)
-
+        fc = process_marine_forecast(forecast_marine_daily.json())
 
         forecast_marine_hourly = requests.get(
                f"https://forecast.weather.gov/MapClick.php?lat={current_lat}&lon={current_lon}&FcstType=digitalDWML",

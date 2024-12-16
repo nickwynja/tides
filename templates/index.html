@@ -171,9 +171,9 @@ select {
 
 table.forecast {
     overflow-x: scroll;
-    width: 260px;
+    width: 285px;
     display: block;
-    margin-left: 140px;
+    margin-left: 75px;
 }
 
 table.forecast td {
@@ -184,7 +184,7 @@ table.forecast td {
 .head-col {
     font-weight: bold;
     position: absolute;
-    width: 140px;
+    width: 85px;
     left: 0;
     top: auto;
 }
@@ -347,10 +347,18 @@ td.c {
         {% set i = loop.index0 %}
         {% set tides = tide_by_day.get(d) %}
         <tr class="{{ 'day' if f.isDaytime else 'night' }}">
-            <td class="head-col"> {{ f.name }} </td>
+            {% if i == 0 %}
+            <td class="head-col"> Today </td>
+            {% elif i == 1 %}
+            <td class="head-col"> Tonight </td>
+            {% elif f.isDaytime %}
+            <td class="head-col"> {{ f.name }}</td>
+            {% else %}
+            <td></td>
+            {% endif %}
             <!-- <td> {{ f. shortForecast }}</td> -->
             {% if i < fc | length %}
-            <td> {{ fc[i].wind_dir  }} </td>
+            <td class="c"> {{ fc[i].wind_dir  }} </td>
             <td class="r"> {{ fc[i].wind_speed  }} kt</td>
             <td class="r"> {{ fc[i].gusts + " kt" if fc[i].gusts else "" }}</td>
             <td class="r"> {{ fc[i].seas  }}'</td>

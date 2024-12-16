@@ -346,6 +346,7 @@ td.c {
         {% for f in forecast %}
         {% set i = loop.index0 %}
         {% set tides = tide_by_day.get(d) %}
+
         <tr class="{{ 'day' if f.isDaytime else 'night' }}">
             {% if i == 0 %}
             <td class="head-col"> Today </td>

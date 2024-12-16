@@ -1033,9 +1033,17 @@ def tides():
     forecast = tide_station_forecast.json()['properties']['periods']
 
     for i,d in enumerate(forecast):
-        forecast[i]['startTime'] = datetime.fromisoformat(d['startTime'])
-        forecast[i]['endTime'] = datetime.fromisoformat(d['endTime'])
-
+        e = datetime.fromisoformat(d['endTime'])
+        if i == 0:
+            if e.strftime("%H") == "18":
+                forecast[i]['startTime'] = datetime.fromisoformat(
+                    d['startTime']).replace(microsecond=0, second=0, minute=0, hour=6)
+            else:
+                forecast[i]['startTime'] = datetime.fromisoformat(
+                    d['startTime']).replace(microsecond=0, second=0, minute=0, hour=18)
+        else:
+            forecast[i]['startTime'] = datetime.fromisoformat(d['startTime'])
+        forecast[i]['endTime'] = e
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
                      'wind annotations'

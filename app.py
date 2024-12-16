@@ -1034,15 +1034,15 @@ def tides():
 
     for i,d in enumerate(forecast):
         e = datetime.fromisoformat(d['endTime'])
+        s = datetime.fromisoformat(d['startTime'])
+        # set todays startTime to beginning of day to retain tide times
+        # since
         if i == 0:
             if e.strftime("%H") == "18":
-                forecast[i]['startTime'] = datetime.fromisoformat(
-                    d['startTime']).replace(microsecond=0, second=0, minute=0, hour=6)
+                s = s.replace(microsecond=0, second=0, minute=0, hour=6)
             else:
-                forecast[i]['startTime'] = datetime.fromisoformat(
-                    d['startTime']).replace(microsecond=0, second=0, minute=0, hour=18)
-        else:
-            forecast[i]['startTime'] = datetime.fromisoformat(d['startTime'])
+                s = s.replace(microsecond=0, second=0, minute=0, hour=18)
+        forecast[i]['startTime'] = s
         forecast[i]['endTime'] = e
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +

@@ -995,8 +995,6 @@ def tides():
                 expire_after=seconds_until_hour(),
                 )
 
-        print(forecast_marine_daily.url)
-
         fc = process_marine_forecast(forecast_marine_daily.json())
 
         forecast_marine_hourly = requests.get(
@@ -1069,6 +1067,11 @@ def tides():
     for m in moon_phases:
         d = m['date'].strftime('%Y-%m-%d')
         moon_forecast[d] = m['phase']
+
+    for m in moon_events:
+        d = m['time'].strftime('%Y-%m-%d')
+        if not d in moon_forecast and m['event'] == 'transit':
+            moon_forecast[d] = f"{round(m['illumination'] * 100)}%"
 
     moon_data = []
 

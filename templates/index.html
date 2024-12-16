@@ -317,6 +317,7 @@ td.c {
                     <th class="head-col"></th>
                     <th colspan="3">wind</th>
                     <th></th>
+                    <th>air</th>
                     <th></th>
                     <th colspan="4">tides</th>
                     <th colspan="4">sun</th>
@@ -329,6 +330,7 @@ td.c {
                     <th>gusts</th>
                     <th>seas</th>
                     <th>temp</th>
+                    <th>pop</th>
                     <th>high</th>
                     <th>feet</th>
                     <th>low</th>
@@ -341,7 +343,7 @@ td.c {
                 </tr>
             </thead>
         {% set day_loop = namespace(value=0) %}
-        {% for f in forecast[:10] %}
+        {% for f in forecast %}
         {% set i = loop.index0 %}
         {% set tides = tide_by_day.get(d) %}
         <tr class="{{ 'day' if f.isDaytime else 'night' }}">
@@ -359,6 +361,7 @@ td.c {
             <td></td>
             {% endif %}
             <td> {{ f.temperature }}&deg;{{ f.temperatureUnit }} </td>
+            <td class="r"> {{ f.probabilityOfPrecipitation.value|string + "%" if f.probabilityOfPrecipitation.value else "" }}</td>
             <td>
                 {% for t in tide_by_day.high %}{% if t.time > f.startTime and t.time < f.endTime %}
                 {{ t.time.strftime("%H:%M") }}

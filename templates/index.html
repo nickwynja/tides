@@ -349,9 +349,9 @@ td.c {
 
         <tr class="{{ 'day' if f.isDaytime else 'night' }}">
             {% if i == 0 %}
-            <td class="head-col"> Today </td>
+            <td class="head-col"> {{ "Today" if f.isDaytime else "Tonight" }} </td>
             {% elif i == 1 %}
-            <td class="head-col"> Tonight </td>
+            <td class="head-col"> {{ "Tomorrow" if f.isDaytime else "Tonight" }} </td>
             {% elif f.isDaytime %}
             <td class="head-col"> {{ f.name }}</td>
             {% else %}

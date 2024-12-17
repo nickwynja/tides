@@ -470,11 +470,11 @@ td.c {
 
         <h3>Observations</h3>
 
-        <table class="forecast">
+        <table>
             <thead>
                 <tr>
-                    <th class="head-col"></th>
-                    {% for station in met_data['Wind Speed'].keys() | reverse %}
+                    <th></th>
+                    {% for station in met_data['Wind Speed'].keys() %}
                     <th><a href="https://www.ndbc.noaa.gov/station_page.php?station={{station}}" target="_blank">{{ station }}</a></th>
                     {% endfor %}
                 </tr>
@@ -482,8 +482,8 @@ td.c {
             <tbody>
                 {% for data_type, values in met_data.items() %}
                 <tr>
-                    <td class="head-col">{{ data_type }}</td>
-                    {% for station, value in values.items() | reverse %}
+                    <td>{{ data_type }}</td>
+                    {% for station, value in values.items() %}
                     <td>{{ value|safe }}</td>
                     {% endfor %}
                 </tr>
@@ -526,6 +526,10 @@ td.c {
             </tr>
             <tr>
                 <td></td>
+                <td><a href="https://forecast.weather.gov/MapClick.php?lat={{tide_station['lat']}}&lon={{tide_station['lng']}}" target="_blank">WX</a></td>
+            </tr>
+            <tr>
+                <td></td>
                 <td>{{ tc }}</td>
             </tr>
             {% if current_station %}
@@ -536,6 +540,10 @@ td.c {
             <tr>
                 <td></td>
                 <td>{{ cc }}</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="https://forecast.weather.gov/MapClick.php?lat={{current_station['lat']}}&lon={{current_station['lng']}}" target="_blank">WX</a></td>
             </tr>
             <tr>
                 <td></td>

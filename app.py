@@ -710,7 +710,7 @@ def tides():
             'Updated': {},
             }
 
-    for st in ['NWHC3','MTKN6']:
+    for st in ['BRHC3','NWHC3','MTKN6']:
 
         buoy_data = requests.get(
                 f"https://www.ndbc.noaa.gov/data/realtime2/{st}.txt",

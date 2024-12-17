@@ -315,7 +315,7 @@ td.c {
             <thead>
                 <tr>
                     <th class="head-col"></th>
-                    <th colspan="3">wind</th>
+                    <th colspan="4">wind</th>
                     <th></th>
                     <th>air</th>
                     <th></th>
@@ -327,6 +327,7 @@ td.c {
                     <th class="head-col"></th>
                     <th>dir</th>
                     <th>wind</th>
+                    <th></th>
                     <th>gusts</th>
                     <th>seas</th>
                     <th>temp</th>
@@ -342,9 +343,13 @@ td.c {
                     <th>phase</th>
                 </tr>
             </thead>
+
         {% set day_loop = namespace(value=0) %}
         {% for f in forecast %}
         {% set i = loop.index0 %}
+        {% set t = f.startTime.strftime("%Y-%m-%dT%H:%M:%S%z") %}
+        {# https://stackoverflow.com/a/79072269 #}
+        {% set t = t[:-2] + ':' + t[-2:] %}
         {% set tides = tide_by_day.get(d) %}
 
         <tr class="{{ 'day' if f.isDaytime else 'night' }}">
@@ -358,12 +363,14 @@ td.c {
             <td></td>
             {% endif %}
             <!-- <td> {{ f. shortForecast }}</td> -->
-            {% if i < fc | length %}
-            <td class="c"> {{ fc[i].wind_dir  }} </td>
-            <td class="r"> {{ fc[i].wind_speed  }} kt</td>
-            <td class="r"> {{ fc[i].gusts + " kt" if fc[i].gusts else "" }}</td>
-            <td class="r"> {{ fc[i].seas  }}'</td>
+            {% if t in fc %}
+            <td class="c"> {{ fc[t].wind_dir  }} </td>
+            <td class="r" title="{{ fc[t].wind_more }}"> {{ fc[t].wind_speed  }} kt</td>
+            <td title="{{ fc[t].wind_more }}"> {{ "*" if fc[t].wind_more }} </td>
+            <td class="r"> {{ fc[t].gusts + " kt" if fc[t].gusts else "" }}</td>
+            <td class="r"> {{ fc[t].seas  }}'</td>
             {% else %}
+            <td></td>
             <td></td>
             <td></td>
             <td></td>
@@ -394,7 +401,6 @@ td.c {
             </td>
             {% if f.isDaytime %}
 
-            <!-- {{ day_loop }} -->
             <td>{{ sun[day_loop.value]['dawn'].strftime('%H:%M') }}</td>
             <td>{{ sun[day_loop.value]['rise'].strftime('%H:%M') }}</td>
             <td>{{ sun[day_loop.value]['set'].strftime('%H:%M') }}</td>
@@ -412,61 +418,6 @@ td.c {
 
         {% endfor %}
         </table>
-
-
-            {#
-        <table class="forecast">
-            <thead>
-                <tr>
-                    <th class="head-col"></th>
-                    <th colspan="3">wind</th>
-                    <th colspan="2">waves</th>
-                    <th colspan="2">temp</th>
-                    <th colspan="4">tides</th>
-                    <th colspan="4">sun</th>
-                    <th colspan="3">moon</th>
-                </tr>
-                <tr>
-                    <th class="head-col"></th>
-                    <th>dir</th>
-                    <th>wind</th>
-                    <th>gusts</th>
-                    <th>max</th>
-                    <th>per</th>
-                    <th>high</th>
-                    <th>low</th>
-                    <th>high</th>
-                    <th>low</th>
-                    <th>max</th>
-                    <th>min</th>
-                    <th>dawn</th>
-                    <th>rise</th>
-                    <th>set</th>
-                    <th>dusk</th>
-                    <th>phase</th>
-                </tr>
-            </thead>
-
-        {% for key,value in daily_forecast.iterrows() %}
-        <tr>
-            {% if loop.first %}
-            <td class="head-col">Today</td>
-            {% else %}
-            <td class="head-col">{{ value.date.strftime('%A') }}</td>
-            {% endif %}
-            <td> {{ value.wind_direction_10m_dominant_compass }}</td>
-            <td class="r"> {{ value.wind_speed_10m_max | round | int }} kt</td>
-            <td class="r"> {{ value.wind_gusts_10m_max | round | int }} kt</td>
-            <td class="r"> {{ value.wave_height_max | round | int }}'</td>
-            <td class="r"> {{ value.wave_period_max | round | int }}s</td>
-            <td>{{ value.temperature_2m_max | round | int }}&deg;F</td>
-            <td>{{ value.temperature_2m_min | round | int }}&deg;F</td>
-            <td>{{ value.precipitation_probability_max }}</td>
-            <td>{{ value.precipitation_sum }}</td>
-        </tr>
-        {% endfor %}
-        </table>
-        #}
 
         <h3>Observations</h3>
 

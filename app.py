@@ -492,13 +492,14 @@ def get_metadata_for_station(station_id):
 
 
 def process_marine_forecast(fcm):
-    fc = []
+    fc = {}
     if fcm['location']['county'] != "marine":
         return fc
 
-    for f in fcm['data']['text']:
+    for i,f in enumerate(fcm['data']['text']):
         fx = {}
         for l in f.split('.'):
+
             l = l.strip()
             if 'wind' in l.lower():
                 if l.split(' ')[0] in COMPASS:
@@ -523,7 +524,7 @@ def process_marine_forecast(fcm):
                     if 'gusts' in ss[1]:
                         fx['gusts'] = re.findall("\d+", ss[1])[0]
                     else:
-                        fx['wind_more'] = ss[1].strip()
+                        fx['wind_more'] = ss[1].strip() if ss[1].strip() != "or less" else ""
             if 'seas' in l.lower():
                 s = l.removeprefix('Seas ')
                 s = s.removeprefix('around')
@@ -535,7 +536,8 @@ def process_marine_forecast(fcm):
                 # fx['seas'] = s.replace(' ', '')
                 fx['seas'] = s.strip()
 
-        fc.append(fx)
+        t = fcm['time']['startValidTime'][i]
+        fc[t] = fx
     return fc
 
 
@@ -999,7 +1001,7 @@ def tides():
 
         forecast_marine_hourly = requests.get(
                f"https://forecast.weather.gov/MapClick.php?lat={current_lat}&lon={current_lon}&FcstType=digitalDWML",
-               expire_after=seconds_until_hour(),
+               expire_after=60 * 10,
                )
 
         tree = ET.ElementTree(ET.fromstring(forecast_marine_hourly.text))

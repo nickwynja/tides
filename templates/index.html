@@ -429,6 +429,13 @@ td.c {
 
         {% endfor %}
         </table>
+        <p>
+            <a href="https://forecast.weather.gov/MapClick.php?lat={{tide_station['lat']}}&lon={{tide_station['lng']}}" target="_blank">Forecast at {{tide_station['lat']}}, {{tide_station['lng']}}</a>
+            {% if current_station %}
+                <br>
+            <a href="https://marine.weather.gov/MapClick.php?lat={{current_station['lat']}}&lon={{current_station['lng']}}" target="_blank">Marine point forecast at {{current_station['lat']}}, {{current_station['lng']}}</a>
+            {% endif %}
+        </p>
 
         <h3>Observations</h3>
 
@@ -488,10 +495,6 @@ td.c {
             </tr>
             <tr>
                 <td></td>
-                <td><a href="https://forecast.weather.gov/MapClick.php?lat={{tide_station['lat']}}&lon={{tide_station['lng']}}" target="_blank">WX</a></td>
-            </tr>
-            <tr>
-                <td></td>
                 <td>{{ tc }}</td>
             </tr>
             {% if current_station %}
@@ -502,10 +505,6 @@ td.c {
             <tr>
                 <td></td>
                 <td>{{ cc }}</td>
-            </tr>
-            <tr>
-                <td></td>
-                <td><a href="https://forecast.weather.gov/MapClick.php?lat={{current_station['lat']}}&lon={{current_station['lng']}}" target="_blank">WX</a></td>
             </tr>
             <tr>
                 <td></td>

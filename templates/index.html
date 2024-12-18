@@ -173,24 +173,28 @@ table.forecast {
     overflow-x: scroll;
     width: 285px;
     display: block;
-    margin-left: 75px;
+    margin-left: 78px;
 }
 
 table.forecast td {
     white-space: nowrap;
 }
 
-
 .head-col {
     font-weight: bold;
     position: absolute;
-    width: 85px;
+    width: 78px;
     left: 0;
     top: auto;
+    border-right: 2px solid black;
 }
 
 tr.day td {
     background-color: #333;
+}
+
+tr.night td {
+    background-color: #000;
 }
 
 td.r {
@@ -199,7 +203,6 @@ td.r {
 
 td.r details[open] {
     text-align: left;
-}
 }
 
 td.c {
@@ -332,7 +335,7 @@ td.c {
                     <th class="head-col"></th>
                     <th>dir</th>
                     <th>speed</th>
-                    <th>gusts</th>
+                    <th>gust</th>
                     <th>seas</th>
                     <th>temp</th>
                     <th>pop</th>
@@ -364,7 +367,7 @@ td.c {
             {% elif f.isDaytime %}
             <td class="head-col"> {{ f.name }}</td>
             {% else %}
-            <td></td>
+            <td class="head-col">&nbsp;</td>
             {% endif %}
             <!-- <td> {{ f. shortForecast }}</td> -->
             {% if t in fc %}
@@ -396,7 +399,7 @@ td.c {
             </td>
             <td class="r">
                 {% for t in tide_by_day.high %}{% if t.time > f.startTime and t.time < f.endTime %}
-                {{ t.feet | round(1) }}
+                {{ t.feet | round(1) }}'
             {% endif %}{% endfor %}
             </td>
             <td>
@@ -407,7 +410,7 @@ td.c {
             </td>
             <td class="r">
                 {% for t in tide_by_day.low %}{% if t.time > f.startTime and t.time < f.endTime %}
-                {{ t.feet | round(1) }}
+                {{ t.feet | round(1) }}'
                 {% endif %}{% endfor %}
             </td>
             {% if f.isDaytime %}

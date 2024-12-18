@@ -679,38 +679,11 @@ def tides():
             'metadata collected'
             )
 
-    forecast_daily = requests.get(
-            f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
-            expire_after=seconds_until_hour(),
-            )
+    # forecast_daily = requests.get(
+    #         f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
+    #         expire_after=seconds_until_hour(),
+    #         )
 
-    hazards = []
-    zone = forecast_daily.json()['location']['zone']
-    if 'hazard' in forecast_daily.json()['data']:
-
-        hazards_data = requests.get(
-                f"https://api.weather.gov/alerts/active?zone={zone}",
-                expire_after=seconds_until_hour(),
-                )
-
-        for h in hazards_data.json()['features']:
-            if 'properties' in h:
-                h = h['properties']
-                # print(h)
-                if h['severity'] != "Minor":
-                    app.logger.info(f"hazard severity: {h['severity']}")
-                    hazards.append({
-                            "effective": pd.to_datetime(h['effective']),
-                            "headline": h['headline'].removesuffix(f" by {h['senderName']}"),
-                            "ends": pd.to_datetime(h['ends']),
-                            "expires": pd.to_datetime(h['expires']),
-                            "event": h['event'],
-                            "description": h['description'],
-                            })
-
-    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
-                     'forecast collected'
-                     )
     met_data = {
             'Water Temp': {},
             'Wind Speed': {},
@@ -862,120 +835,6 @@ def tides():
             'currents charted'
             )
 
-    # url = "https://api.open-meteo.com/v1/forecast"
-    # params = {
-    #     "latitude": lat,
-    #     "longitude": lon,
-    #     "current": ["temperature_2m", "cloud_cover", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "pressure_msl"],
-    #     "hourly": ["temperature_2m", "relative_humidity_2m", "precipitation_probability", "precipitation", "pressure_msl", "cloud_cover", "visibility", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"],
-    #     "daily": ["temperature_2m_max", "temperature_2m_min", "wind_speed_10m_max",
-    #               "wind_gusts_10m_max", "wind_direction_10m_dominant",
-    #               "precipitation_probability_max", "precipitation_sum"],
-    #     "temperature_unit": "fahrenheit",
-    #     "wind_speed_unit": "kn",
-    #     "precipitation_unit": "inch",
-    #     "timezone": "America/New_York"
-    # }
-
-    # forecast_responses = openmeteo.weather_api(url, params=params)
-    # forecast_response = forecast_responses[0]
-    # forecast_current = forecast_response.Current()
-    # forecast_hourly = forecast_response.Hourly()
-    # forecast_daily = forecast_response.Daily()
-
-    # url = "https://marine-api.open-meteo.com/v1/marine"
-    # params = {
-    #     "latitude": lat,
-    #     "longitude": lon,
-    #     "current": ["wave_height", "wave_direction", "wave_period"],
-    #     "hourly": ["wave_height", "wave_direction", "wave_period"],
-    #     "daily": ["wave_height_max", "wave_direction_dominant", "wave_period_max"],
-    #     "length_unit": "imperial",
-    #     "wind_speed_unit": "kn",
-    #     "timezone": "America/New_York"
-    # }
-
-    # marine_forecast = openmeteo.weather_api(url, params=params)
-    # marine_response = marine_forecast[0]
-    # marine_current = marine_response.Current()
-    # marine_daily = marine_response.Daily()
-    # marine_hourly = marine_response.Hourly()
-
-    # forecast = {
-    #         'current': {
-    #             'temperature_2m': forecast_current.Variables(0).Value(),
-    #             'cloud_cover': forecast_current.Variables(1).Value(),
-    #             'wind_speed_10m': forecast_current.Variables(2).Value(),
-    #             'wind_direction_10m': forecast_current.Variables(3).Value(),
-    #             'wind_gusts_10m': forecast_current.Variables(4).Value(),
-    #             'pressure_msl': forecast_current.Variables(5).Value(),
-    #             'wave_height': marine_current.Variables(0).Value(),
-    #             'wave_direction': marine_current.Variables(1).Value(),
-    #             'wave_period': marine_current.Variables(2).Value(),
-    #             },
-    #         'hourly': {
-    #             'temperature_2m': forecast_hourly.Variables(0).ValuesAsNumpy(),
-    #             'relative_humidity_2m': forecast_hourly.Variables(1).ValuesAsNumpy(),
-    #             'precipitation_probability': forecast_hourly.Variables(2).ValuesAsNumpy(),
-    #             'precipitation': forecast_hourly.Variables(3).ValuesAsNumpy(),
-    #             'pressure_msl': forecast_hourly.Variables(4).ValuesAsNumpy(),
-    #             'cloud_cover': forecast_hourly.Variables(5).ValuesAsNumpy(),
-    #             'visibility': forecast_hourly.Variables(6).ValuesAsNumpy(),
-    #             'wind_speed_10m': forecast_hourly.Variables(7).ValuesAsNumpy(),
-    #             'wind_direction_10m': forecast_hourly.Variables(8).ValuesAsNumpy(),
-    #             'wind_gusts_10m': forecast_hourly.Variables(9).ValuesAsNumpy(),
-    #             'wave_height': marine_hourly.Variables(0).ValuesAsNumpy(),
-    #             'wave_direction': marine_hourly.Variables(1).ValuesAsNumpy(),
-    #             'wave_period': marine_hourly.Variables(2).ValuesAsNumpy(),
-    #             },
-    #         'daily': {
-    #             'temperature_2m_max': forecast_daily.Variables(0).ValuesAsNumpy(),
-    #             'temperature_2m_min': forecast_daily.Variables(1).ValuesAsNumpy(),
-    #             'wind_speed_10m_max': forecast_daily.Variables(2).ValuesAsNumpy(),
-    #             'wind_gusts_10m_max': forecast_daily.Variables(3).ValuesAsNumpy(),
-    #             'wind_direction_10m_dominant': forecast_daily.Variables(4).ValuesAsNumpy(),
-    #             'precipitation_probability_max': forecast_daily.Variables(5).ValuesAsNumpy(),
-    #             'precipitation_sum': forecast_daily.Variables(6).ValuesAsNumpy(),
-    #             'wave_height_max': marine_daily.Variables(0).ValuesAsNumpy(),
-    #             'wave_direction_dominant': marine_daily.Variables(1).ValuesAsNumpy(),
-    #             'wave_period_max': marine_daily.Variables(2).ValuesAsNumpy(),
-    #             },
-    #         }
-
-    # hourly_data = {"date": pd.date_range(
-    #     start = pd.to_datetime(forecast_hourly.Time(), unit = "s", utc = True),
-    #     end = pd.to_datetime(forecast_hourly.TimeEnd(), unit = "s", utc = True),
-    #     freq = pd.Timedelta(seconds = forecast_hourly.Interval()),
-    #     inclusive = "left"),
-    #     **forecast['hourly']
-    # }
-
-    # hourly_dataframe = pd.DataFrame(data = hourly_data)
-
-    # daily_data = {"date": pd.date_range(
-    #     start = pd.to_datetime(forecast_daily.Time(), unit = "s", utc = True),
-    #     end = pd.to_datetime(forecast_daily.TimeEnd(), unit = "s", utc = True),
-    #     freq = pd.Timedelta(seconds = forecast_daily.Interval()),
-    #     inclusive = "left"),
-    #   **forecast['daily']
-    # }
-
-    # daily_dataframe = pd.DataFrame(data = daily_data)
-
-    # daily_dataframe['wind_direction_10m_dominant_compass'] = daily_dataframe['wind_direction_10m_dominant'].apply(deg_to_compass)
-    # daily_dataframe['wave_direction_dominant_compass'] = daily_dataframe['wave_direction_dominant'].apply(deg_to_compass)
-    # daily_dataframe['date'] = pd.to_datetime(daily_dataframe['date'])
-    # daily_dataframe['day'] = daily_dataframe['date'].dt.strftime("%Y-%m-%d")
-
-    # loc = "Local"
-    # met_data['Updated'][loc] = local_now.strftime("%H:%M")
-    # met_data['Wind Speed'][loc] = f"{round(forecast['current']['wind_speed_10m'])} kt"
-    # met_data['Wind Dir'][loc] = f"{deg_to_compass(forecast['current']['wind_direction_10m'])}"
-    # met_data['Wind Gusts'][loc] = f"{round(forecast['current']['wind_gusts_10m'])} kt"
-    # met_data['Pressure'][loc] = f"{round(forecast['current']['pressure_msl'], 1)} hPa"
-    # met_data['Air Temp'][loc] = f"{round(forecast['current']['temperature_2m'])}&deg;F"
-    # met_data['Water Temp'][loc] = "-"
-
     tide_station_metadata = get_metadata_for_station(tide_station['id'])
     tide_lat = tide_station_metadata['lat']
     tide_lon = tide_station_metadata['lng']
@@ -1036,6 +895,7 @@ def tides():
             f"https://api.weather.gov/points/{tide_lat},{tide_lon}",
             )
 
+    zone = tide_station_forecast_urls.json()['properties']['forecastZone'].split('/')[-1]
     tide_station_forecast = requests.get(
             tide_station_forecast_urls.json()['properties']['forecast'],
             expire_after=seconds_until_hour(),
@@ -1054,6 +914,32 @@ def tides():
                 s = s.replace(microsecond=0, second=0, minute=0, hour=18)
         forecast[i]['startTime'] = s
         forecast[i]['endTime'] = e
+
+    hazards = []
+
+    hazards_data = requests.get(
+            f"https://api.weather.gov/alerts/active?zone={zone}",
+            expire_after=seconds_until_hour(),
+            )
+
+    for h in hazards_data.json()['features']:
+        if 'properties' in h:
+            h = h['properties']
+            # print(h)
+            if h['severity'] != "Minor":
+                app.logger.info(f"hazard severity: {h['severity']}")
+                hazards.append({
+                        "effective": pd.to_datetime(h['effective']),
+                        "headline": h['headline'].removesuffix(f" by {h['senderName']}"),
+                        "ends": pd.to_datetime(h['ends']),
+                        "expires": pd.to_datetime(h['expires']),
+                        "event": h['event'],
+                        "description": h['description'],
+                        })
+
+
+    app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
+                     'forecast collected')
 
     app.logger.debug(f"{(time.perf_counter()-timer_start):.2f}: " +
                      'wind annotations'

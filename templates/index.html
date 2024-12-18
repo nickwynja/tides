@@ -355,8 +355,6 @@ td.c {
         {% for f in forecast %}
         {% set i = loop.index0 %}
         {% set t = f.startTime.strftime("%Y-%m-%dT%H:%M:%S%z") %}
-        {# https://stackoverflow.com/a/79072269 #}
-        {% set t = t[:-2] + ':' + t[-2:] %}
         {% set tides = tide_by_day.get(d) %}
 
         <tr class="{{ 'day' if f.isDaytime else 'night' }}">
@@ -393,23 +391,23 @@ td.c {
             <td> {{ f.temperature }}&deg;{{ f.temperatureUnit }} </td>
             <td class="r"> {{ f.probabilityOfPrecipitation.value|string + "%" if f.probabilityOfPrecipitation.value else "" }}</td>
             <td>
-                {% for t in tide_by_day.high %}{% if t.time > f.startTime and t.time < f.endTime %}
+                {% for t in tide_by_day.high %}{% if t.time >= f.startTime and t.time <= f.endTime %}
                 {{ t.time.strftime("%H:%M") }}
             {% endif %}{% endfor %}
             </td>
             <td class="r">
-                {% for t in tide_by_day.high %}{% if t.time > f.startTime and t.time < f.endTime %}
+                {% for t in tide_by_day.high %}{% if t.time >= f.startTime and t.time <= f.endTime %}
                 {{ t.feet | round(1) }}'
             {% endif %}{% endfor %}
             </td>
             <td>
-            {% for t in tide_by_day.low %}{% if t.time > f.startTime and t.time < f.endTime %}
+            {% for t in tide_by_day.low %}{% if t.time >= f.startTime and t.time <= f.endTime %}
                 {{ t.time.strftime("%H:%M") }}
 
             {% endif %}{% endfor %}
             </td>
             <td class="r">
-                {% for t in tide_by_day.low %}{% if t.time > f.startTime and t.time < f.endTime %}
+                {% for t in tide_by_day.low %}{% if t.time >= f.startTime and t.time <= f.endTime %}
                 {{ t.feet | round(1) }}'
                 {% endif %}{% endfor %}
             </td>
@@ -432,11 +430,20 @@ td.c {
 
         {% endfor %}
         </table>
-        <p>
-            <a href="https://forecast.weather.gov/MapClick.php?lat={{tide_station['lat']}}&lon={{tide_station['lng']}}" target="_blank">Forecast at {{tide_station['lat']}}, {{tide_station['lng']}}</a>
+        <table>
+            <tr>
+                <td>Forecast:</td>
+                <td>
+            <a href="https://forecast.weather.gov/MapClick.php?lat={{tide_station['lat']}}&lon={{tide_station['lng']}}" target="_blank">{{tide_station['lat']}}, {{tide_station['lng']}}</a>
+                </td>
             {% if current_station %}
-                <br>
-            <a href="https://marine.weather.gov/MapClick.php?lat={{current_station['lat']}}&lon={{current_station['lng']}}" target="_blank">Marine point forecast at {{current_station['lat']}}, {{current_station['lng']}}</a>
+                <tr>
+                <td>Marine:</td>
+                <td>
+            <a href="https://marine.weather.gov/MapClick.php?lat={{current_station['lat']}}&lon={{current_station['lng']}}" target="_blank">{{current_station['lat']}}, {{current_station['lng']}}</a>
+                </td>
+                </tr>
+
             {% endif %}
         </p>
 

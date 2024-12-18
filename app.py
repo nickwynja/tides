@@ -519,8 +519,12 @@ def process_marine_forecast(fcm):
                 s = s.replace("less than ", '<')
                 s = s.replace(" to ", '-')
                 s = s.replace("around ", '')
+
                 fx['wind_speed'] = s
+
                 if len(ss) > 1:
+                    if ss[1].startswith(' or less'):
+                        fx['wind_speed'] = f"<{s}"
                     if 'gusts' in ss[1]:
                         fx['gusts'] = re.findall("\d+", ss[1])[0]
                     else:
@@ -531,12 +535,17 @@ def process_marine_forecast(fcm):
                 s = s.replace(' ft', '')
                 s = s.replace(" building to", "' then ")
                 s = s.replace(" subsiding to", "' then ")
-                s = s.replace(' or less', ">")
+                if 'or less' in s:
+                    s = s.replace(' or less', "")
+                    s = f"<{s}"
                 s = s.replace(' to ', '-')
                 # fx['seas'] = s.replace(' ', '')
                 fx['seas'] = s.strip()
 
-        t = fcm['time']['startValidTime'][i]
+        t = datetime.strptime(fcm['time']['startValidTime'][i], "%Y-%m-%dT%H:%M:%S%z")
+        if t.strftime("%H") == "12":
+            t = t.replace(hour=6)
+        t = t.strftime("%Y-%m-%dT%H:%M:%S%z")  # https://stackoverflow.com/a/79072269
         fc[t] = fx
     return fc
 
@@ -1035,14 +1044,13 @@ def tides():
     forecast = tide_station_forecast.json()['properties']['periods']
 
     for i,d in enumerate(forecast):
-        e = datetime.fromisoformat(d['endTime'])
         s = datetime.fromisoformat(d['startTime'])
+        e = datetime.fromisoformat(d['endTime'])
         # set todays startTime to beginning of day to retain tide times
-        # since
         if i == 0:
             if e.strftime("%H") == "18":
                 s = s.replace(microsecond=0, second=0, minute=0, hour=6)
-            else:
+            if e.strftime("%H") == "06":
                 s = s.replace(microsecond=0, second=0, minute=0, hour=18)
         forecast[i]['startTime'] = s
         forecast[i]['endTime'] = e

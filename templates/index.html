@@ -197,6 +197,11 @@ td.r {
     text-align: right;
 }
 
+td.r details[open] {
+    text-align: left;
+}
+}
+
 td.c {
     text-align: center;
 }
@@ -315,7 +320,7 @@ td.c {
             <thead>
                 <tr>
                     <th class="head-col"></th>
-                    <th colspan="4">wind</th>
+                    <th colspan="3">wind</th>
                     <th></th>
                     <th>air</th>
                     <th></th>
@@ -326,8 +331,7 @@ td.c {
                 <tr>
                     <th class="head-col"></th>
                     <th>dir</th>
-                    <th>wind</th>
-                    <th></th>
+                    <th>speed</th>
                     <th>gusts</th>
                     <th>seas</th>
                     <th>temp</th>
@@ -365,12 +369,19 @@ td.c {
             <!-- <td> {{ f. shortForecast }}</td> -->
             {% if t in fc %}
             <td class="c"> {{ fc[t].wind_dir  }} </td>
-            <td class="r" title="{{ fc[t].wind_more }}"> {{ fc[t].wind_speed  }} kt</td>
-            <td title="{{ fc[t].wind_more }}"> {{ "*" if fc[t].wind_more }} </td>
+            {% if fc[t].wind_more %}
+            <td class="r">
+                <details>
+                    <summary>{{ fc[t].wind_speed  }} kt</summary>
+                    {{ fc[t].wind_more }}
+                </details>
+            </td>
+            {% else %}
+                <td class="r">{{ fc[t].wind_speed  }} kt</td>
+            {% endif %}
             <td class="r"> {{ fc[t].gusts + " kt" if fc[t].gusts else "" }}</td>
             <td class="r"> {{ fc[t].seas  }}'</td>
             {% else %}
-            <td></td>
             <td></td>
             <td></td>
             <td></td>

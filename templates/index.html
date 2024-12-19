@@ -84,7 +84,7 @@ body {
     font-family: monospace;
     font-size: 16px;
     color: white;
-    background-color: rgb(17, 17, 17);
+    background-color: #111;
 }
 
 td {
@@ -171,9 +171,9 @@ select {
 
 table.forecast {
     overflow-x: scroll;
-    width: 275px;
+    width: 280px;
     display: block;
-    margin-left: 90px;
+    margin-left: 85px;
 }
 
 table.forecast td {
@@ -183,10 +183,10 @@ table.forecast td {
 .head-col {
     font-weight: bold;
     position: absolute;
-    width: 90px;
+    width: 85px;
     left: 0;
     top: auto;
-    border-right: 2px solid rgb(17, 17, 17);
+    border-right: 2px solid #111;
 }
 
 tr.day td {
@@ -194,15 +194,28 @@ tr.day td {
 }
 
 tr.night td {
-    background-color: rgb(17, 17, 17);
+    background-color: #111;
 }
 
 td.r {
     text-align: right;
 }
 
-td.r details[open] {
+td details[open] .wind-more {
     text-align: left;
+    position: absolute;
+    margin-top: 5px;
+    padding: 4px;
+    border: 1px solid #fff;
+}
+
+tr.day details[open] .wind-more {
+    background-color: #333;
+}
+
+tr.night details[open] .wind-more {
+    background-color: #111;
+
 }
 
 td.c {
@@ -374,7 +387,7 @@ td.c {
             <td class="r">
                 <details>
                     <summary>{{ fc[t].wind_speed  }} {{fc[t].wind_unit}} </summary>
-                    {{ fc[t].wind_more }}
+                    <div class="wind-more">{{ fc[t].wind_more }}</div>
                 </details>
             </td>
             {% else %}

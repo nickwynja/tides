@@ -373,15 +373,15 @@ td.c {
             {% if fc[t].wind_more %}
             <td class="r">
                 <details>
-                    <summary>{{ fc[t].wind_speed  }} kt</summary>
+                    <summary>{{ fc[t].wind_speed  }} {{fc[t].wind_unit}} </summary>
                     {{ fc[t].wind_more }}
                 </details>
             </td>
             {% else %}
-                <td class="r">{{ fc[t].wind_speed  }} kt</td>
+                <td class="r">{{ fc[t].wind_speed  }} {{fc[t].wind_unit}} </td>
             {% endif %}
-            <td class="r"> {{ fc[t].gusts + " kt" if fc[t].gusts else "" }}</td>
-            <td class="r"> {{ fc[t].seas  }}'</td>
+            <td class="r"> {{ fc[t].gusts + " " + fc[t].wind_unit  if fc[t].gusts else "" }}</td>
+            <td class="r"> {{ fc[t].seas + "'" if fc[t].seas }}</td>
             {% else %}
             <td></td>
             <td></td>

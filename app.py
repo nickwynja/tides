@@ -493,61 +493,93 @@ def get_metadata_for_station(station_id):
 
 def process_marine_forecast(fcm):
     fc = {}
-    if fcm['location']['county'] != "marine":
-        return fc
-
     for i,f in enumerate(fcm['data']['text']):
         fx = {}
         for l in f.split('.'):
-
             l = l.strip()
-            if 'wind' in l.lower():
-                if l.split(' ')[0] in COMPASS:
-                    wind_dir = l.split(' ')[0]
-                    s = l.removeprefix(f"{wind_dir} wind ")
-                else:
-                    if "Winds could gust" in l:
-                        # wind_dir = ""
-                        fx['gusts'] = re.findall("\d+", l)[0]
-                    if l.split(' ')[0] == "Variable":
-                        wind_dir = "-"
-                        s = l.removeprefix(f"Variable winds ")
-                fx['wind_dir'] = wind_dir
-                ss = s.split('kt', 1)
-                s = ss[0].strip()
-                s = s.replace("Winds could gust as high as ", "")
-                s = s.replace("less than ", '<')
-                s = s.replace(" to ", '-')
-                s = s.replace("around ", '')
-
-                fx['wind_speed'] = s
-
-                if len(ss) > 1:
-                    if ss[1].startswith(' or less'):
-                        fx['wind_speed'] = f"<{s}"
-                    if 'gusts' in ss[1]:
-                        fx['gusts'] = re.findall("\d+", ss[1])[0]
+            if fcm['location']['county'] == "marine":
+                if 'wind' in l.lower():
+                    fx['wind_unit'] = 'kt'
+                    if l.split(' ')[0] in COMPASS:
+                        wind_dir = l.split(' ')[0]
+                        s = l.removeprefix(f"{wind_dir} wind ")
                     else:
-                        fx['wind_more'] = ss[1].strip() if ss[1].strip() != "or less" else ""
-            if 'seas' in l.lower():
-                s = l.removeprefix('Seas ')
-                s = s.removeprefix('around')
-                s = s.replace(' ft', '')
-                s = s.replace(" building to", "' then ")
-                s = s.replace(" subsiding to", "' then ")
-                if 'or less' in s:
-                    s = s.replace(' or less', "")
-                    s = f"<{s}"
-                s = s.replace(' to ', '-')
-                # fx['seas'] = s.replace(' ', '')
-                fx['seas'] = s.strip()
+                        if "Winds could gust" in l:
+                            # wind_dir = ""
+                            fx['gusts'] = re.findall("\d+", l)[0]
+                        if l.split(' ')[0] == "Variable":
+                            wind_dir = "-"
+                            s = l.removeprefix(f"Variable winds ")
+                    fx['wind_dir'] = wind_dir
+                    ss = s.split('kt', 1)
+                    s = ss[0].strip()
+                    s = s.replace("Winds could gust as high as ", "")
+                    s = s.replace("less than ", '<')
+                    s = s.replace(" to ", '-')
+                    s = s.replace("around ", '')
 
-        t = datetime.strptime(fcm['time']['startValidTime'][i], "%Y-%m-%dT%H:%M:%S%z")
-        if t.strftime("%H") == "12":
-            t = t.replace(hour=6)
-        t = t.strftime("%Y-%m-%dT%H:%M:%S%z")  # https://stackoverflow.com/a/79072269
-        fc[t] = fx
+                    fx['wind_speed'] = s
+
+                    if len(ss) > 1:
+                        if ss[1].startswith(' or less'):
+                            fx['wind_speed'] = f"<{s}"
+                        if 'gusts' in ss[1]:
+                            fx['gusts'] = re.findall("\d+", ss[1])[0]
+                        else:
+                            fx['wind_more'] = ss[1].strip() if ss[1].strip() != "or less" else ""
+                if 'seas' in l.lower():
+                    s = l.removeprefix('Seas ')
+                    s = s.removeprefix('around')
+                    s = s.replace(' ft', '')
+                    s = s.replace(" building to", "' then ")
+                    s = s.replace(" subsiding to", "' then ")
+                    if 'or less' in s:
+                        s = s.replace(' or less', "")
+                        s = f"<{s}"
+                    s = s.replace(' to ', '-')
+                    # fx['seas'] = s.replace(' ', '')
+                    fx['seas'] = s.strip()
+            else:
+                if 'wind' in l.lower():
+                    fx['wind_unit'] = 'mph'
+                    s = l.lower()
+
+                    fx['wind_dir'] = compass_from_direction_name(l.split(' ')[0])
+                    ss = s.split(', ')
+                    s = ss[0]
+                    s = " ".join(s.split(" ")[2:])
+                    s = s.replace('around', '')
+                    s = s.replace(' to ', '-')
+                    s = s.replace('mph', '')
+                    if len(ss) > 1:
+                        if 'gusts' in ss[1]:
+                            fx['gusts'] = re.findall("\d+", ss[1])[0]
+                        else:
+                            fx['wind_more'] = ss[1].strip() if ss[1].strip() != "or less" else ""
+                    fx['wind_speed'] = s.strip()
+
+        s = datetime.strptime(fcm['time']['startValidTime'][i], "%Y-%m-%dT%H:%M:%S%z")
+        if int(s.strftime("%H")) < 18:
+            s = s.replace(hour=6)
+        s = s.strftime("%Y-%m-%dT%H:%M:%S%z")  # https://stackoverflow.com/a/79072269
+        fc[s] = fx
     return fc
+
+def compass_from_direction_name(name):
+    n = name.lower()
+    if n == "north":
+        return "N"
+    if n == "northwest":
+        return "NW"
+    if n == "northeast":
+        return "NE"
+
+def cond_for_hourly_marine(t, ws, wg, wd, wv):
+    if wg is not None:
+        cond = f"{deg_to_compass(wd)}<br>{ws}-{wg} kt<br>{wv}'"
+    else:
+        cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
+    return cond
 
 
 @app.route('/', methods=["GET", "POST"])
@@ -679,11 +711,6 @@ def tides():
             'metadata collected'
             )
 
-    # forecast_daily = requests.get(
-    #         f"https://marine.weather.gov/MapClick.php?lat={lat}&lon={lon}&FcstType=json",
-    #         expire_after=seconds_until_hour(),
-    #         )
-
     met_data = {
             'Water Temp': {},
             'Wind Speed': {},
@@ -748,8 +775,6 @@ def tides():
     dt['Feet'] = dt['Feet'].astype("float")
     dt['Time'] = dt['Date'].dt.strftime("%H:%M")
     dt['Day'] = dt['Date'].dt.strftime("%Y-%m-%d")
-
-    # print(dt)
 
     tide_by_day = {}
 
@@ -839,6 +864,8 @@ def tides():
     tide_lat = tide_station_metadata['lat']
     tide_lon = tide_station_metadata['lng']
 
+    hourly = {}
+
     forecast_tide_station = requests.get(
             f"https://forecast.weather.gov/MapClick.php?lat={tide_lat}&lon={tide_lon}&FcstType=digitalDWML",
             expire_after=seconds_until_hour(),
@@ -847,13 +874,33 @@ def tides():
     tree = ET.ElementTree(ET.fromstring(forecast_tide_station.text))
     root = tree.getroot()
     times = [x.text for x in root.findall('.//start-valid-time')]
-    # wind_speeds = [x.text for x in root.findall('.//wind-speed[@type="sustained"]/value')]
-    # wind_gusts = [x.text for x in root.findall('.//wind-speed[@type="gust"]/value')]
-    # wind_dir = [x.text for x in root.findall('.//direction[@type="wind"]/value')]
-    # waves = [x.text for x in root.findall('.//waves[@type="significant"]/value')]
+    wind_speeds = [x.text for x in root.findall('.//wind-speed[@type="sustained"]/value')]
+    wind_gusts = [x.text for x in root.findall('.//wind-speed[@type="gust"]/value')]
+    wind_dir = [x.text for x in root.findall('.//direction[@type="wind"]/value')]
+    waves = [x.text for x in root.findall('.//waves[@type="significant"]/value')]
     temp = [x.text for x in root.findall('.//temperature[@type="hourly"]/value')]
 
-    wind_annots = []
+    if temp != []:
+        for t, ws, wg, wd, f in zip(times, wind_speeds, wind_gusts, wind_dir, temp):
+            hourly[t] = {
+                    'land_wind_speed': ws,
+                    'land_wind_gusts': wg,
+                    'land_wind_dir': wd,
+                    'land_temp': f,
+                    }
+
+            cond = f"{deg_to_compass(wd)}"
+            if wg:
+                cond = f"{cond}<br>{ws}-{wg} mph"
+            else:
+                cond = f"{cond}<br>{ws} mph"
+            cond = f"{cond}<br>{f}&deg;F"
+            hourly[t]['land_cond'] = cond
+    else:
+        for t, ws, wg, wd, wv in zip(times, wind_speeds, wind_gusts, wind_dir, waves):
+            cond = cond_for_hourly_marine(t, ws, wg, wd, wv)
+            hourly[t] = {'land_cond': cond}
+
     fc = []
 
     if current_station is not None:
@@ -882,14 +929,20 @@ def tides():
 
 
         for t, ws, wg, wd, wv in zip(times, wind_speeds, wind_gusts, wind_dir, waves):
-        # for t, ws, wg, wd, wv, temp in zip(times, wind_speeds, wind_gusts, wind_dir, waves, temp):
-            if wg is not None:
-                cond = f"{deg_to_compass(wd)}<br>{ws}-{wg} kt<br>{wv}'"
-            else:
-                cond = f"{deg_to_compass(wd)}<br>{ws} kt<br>{wv}'"
-            # cond = f"{cond}<br>{temp}&deg;F"
-            wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=cond, showarrow=False, name="wind")]
+            l = hourly.get(t, {})
+            cond = cond_for_hourly_marine(t, ws, wg, wd, wv)
+            if l.get('land_temp', None) is not None:
+                cond = f"{cond}<br>{l['land_temp']}&deg;F"
+            try:
+                hourly[t]['sea_cond'] = cond
+            except KeyError as e:
+                hourly[t] = {'sea_cond': cond}
 
+
+    wind_annots = []
+    for t,v in hourly.items():
+        c = v['sea_cond'] if 'sea_cond' in v else v['land_cond']
+        wind_annots = wind_annots + [dict(x=t, yref="paper", y=1, yshift=55, text=c, showarrow=False, name="wind")]
 
     tide_station_forecast_urls = requests.get(
             f"https://api.weather.gov/points/{tide_lat},{tide_lon}",
@@ -925,7 +978,6 @@ def tides():
     for h in hazards_data.json()['features']:
         if 'properties' in h:
             h = h['properties']
-            # print(h)
             if h['severity'] != "Minor":
                 app.logger.info(f"hazard severity: {h['severity']}")
                 hazards.append({

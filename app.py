@@ -543,8 +543,12 @@ def process_marine_forecast(fcm):
                 if 'wind' in l.lower():
                     fx['wind_unit'] = 'mph'
                     s = l.lower()
+                    if 'becoming' in s:
+                        s = s.split('mph')
+                        fx['wind_more'] = s[1]
+                        s = s[0]
 
-                    fx['wind_dir'] = compass_from_direction_name(l.split(' ')[0])
+                    fx['wind_dir'] = compass_from_direction_name(s.split(' ')[0])
                     ss = s.split(', ')
                     s = ss[0]
                     s = " ".join(s.split(" ")[2:])

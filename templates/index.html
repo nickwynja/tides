@@ -173,7 +173,7 @@ table.forecast {
     overflow-x: scroll;
     width: 285px;
     display: block;
-    margin-left: 78px;
+    margin-left: 90px;
 }
 
 table.forecast td {
@@ -183,10 +183,10 @@ table.forecast td {
 .head-col {
     font-weight: bold;
     position: absolute;
-    width: 78px;
+    width: 90px;
     left: 0;
     top: auto;
-    border-right: 2px solid black;
+    border-right: 2px solid rgb(17, 17, 17);
 }
 
 tr.day td {
@@ -194,7 +194,7 @@ tr.day td {
 }
 
 tr.night td {
-    background-color: #000;
+    background-color: rgb(17, 17, 17);
 }
 
 td.r {
@@ -363,7 +363,7 @@ td.c {
             {% elif i == 1 %}
             <td class="head-col"> {{ "Tomorrow" if f.isDaytime else "Tonight" }} </td>
             {% elif f.isDaytime %}
-            <td class="head-col"> {{ f.name }}</td>
+            <td class="head-col"> {{ f.startTime.strftime("%a %m/%d") }}</td>
             {% else %}
             <td class="head-col">&nbsp;</td>
             {% endif %}

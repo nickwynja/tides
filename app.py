@@ -394,7 +394,7 @@ def lunar(start_date, end_date, lat, lon):
     mtr_alt, mtr_az,mtr_distance = observer.at(mtr).observe(moon).apparent().altaz()
     for t,a,az in zip(mtr, mtr_alt.degrees, mtr_az.degrees):
         mp = almanac.moon_phase(eph, t)
-        illum = mp.degrees / 180 if mp.degrees / 180 < 1 else (360 / mp.degrees) - 1
+        illum = almanac.fraction_illuminated(eph, 'moon', t)
         events.append({
             'event': 'transit',
             'time': t.astimezone(et),
